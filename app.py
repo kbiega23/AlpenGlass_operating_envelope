@@ -144,15 +144,7 @@ def create_envelope_plot(config_data, min_edge=16):
         hoverinfo='skip'
     ))
     
-    # Add white rectangles to block out areas below minimum size
-    # Bottom-left corner below min_edge x min_edge
-    fig.add_trace(go.Scatter(
-        x=[0, min_edge, min_edge, 0, 0],
-        y=[0, 0, min_edge, min_edge, 0],
-        fill='toself',
-        fillcolor='white',
-        line=dict(width=0),
-        showlegend=False,
+    # Add corner labels for key dimensions with hover infolegend=False,
         hoverinfo='skip'
     ))
     
