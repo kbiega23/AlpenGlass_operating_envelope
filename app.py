@@ -239,22 +239,24 @@ def main():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        outer_lite_options = ['All'] + sorted(df['Outer Lites'].unique().tolist())
-        outer_lite = st.selectbox(
+        outer_lite_values = ['All'] + sorted(df['Outer Lites'].unique().tolist())
+        outer_lite_labels = ['All'] + [f"{x}mm" for x in sorted(df['Outer Lites'].unique().tolist())]
+        outer_lite_display = st.selectbox(
             "Outer Lites Thickness",
-            outer_lite_options,
-            format_func=lambda x: x if x == 'All' else f"{x}mm",
+            outer_lite_labels,
             key="outer_lite_select"
         )
+        outer_lite = 'All' if outer_lite_display == 'All' else float(outer_lite_display.replace('mm', ''))
     
     with col2:
-        inner_lite_options = ['All'] + sorted(df['Inner Lite'].unique().tolist())
-        inner_lite = st.selectbox(
+        inner_lite_values = ['All'] + sorted(df['Inner Lite'].unique().tolist())
+        inner_lite_labels = ['All'] + [f"{x}mm" for x in sorted(df['Inner Lite'].unique().tolist())]
+        inner_lite_display = st.selectbox(
             "Center Lite Thickness",
-            inner_lite_options,
-            format_func=lambda x: x if x == 'All' else f"{x}mm",
+            inner_lite_labels,
             key="inner_lite_select"
         )
+        inner_lite = 'All' if inner_lite_display == 'All' else float(inner_lite_display.replace('mm', ''))
     
     with col3:
         tempered_options = ['All'] + sorted(df['Tempered or Annealed'].unique().tolist())
