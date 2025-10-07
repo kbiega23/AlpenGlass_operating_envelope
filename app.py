@@ -230,28 +230,60 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
         ))
     
     # Add corner labels for key dimensions with hover info
-    annotations = [
-        dict(x=core_long, y=core_short, 
-             text=f"{core_long}\" × {core_short}\"<br>{(core_long*core_short)/144:.1f} sq ft",
-             showarrow=True, arrowhead=2, ax=20, ay=-20,
-             arrowcolor="rgba(33, 150, 243, 1)",
-             bgcolor="rgba(33, 150, 243, 0.8)", font=dict(color="white", size=10)),
-        dict(x=core_short, y=core_long, 
-             text=f"{core_short}\" × {core_long}\"<br>{(core_short*core_long)/144:.1f} sq ft",
-             showarrow=True, arrowhead=2, ax=-20, ay=20,
-             arrowcolor="rgba(33, 150, 243, 1)",
-             bgcolor="rgba(33, 150, 243, 0.8)", font=dict(color="white", size=10)),
-        dict(x=tech_long, y=tech_short, 
-             text=f"{tech_long}\" × {tech_short}\"<br>{(tech_long*tech_short)/144:.1f} sq ft",
-             showarrow=True, arrowhead=2, ax=30, ay=-30,
-             arrowcolor="rgba(255, 152, 0, 1)",
-             bgcolor="rgba(255, 152, 0, 0.8)", font=dict(color="white", size=10)),
-        dict(x=tech_short, y=tech_long, 
-             text=f"{tech_short}\" × {tech_long}\"<br>{(tech_short*tech_long)/144:.1f} sq ft",
-             showarrow=True, arrowhead=2, ax=-30, ay=30,
-             arrowcolor="rgba(255, 152, 0, 1)",
-             bgcolor="rgba(255, 152, 0, 0.8)", font=dict(color="white", size=10))
-    ]
+    # When showing all configs, we need to show the actual envelope corners, not single config
+    if show_all and all_configs_df is not None and not all_configs_df.empty:
+        # Find the actual max dimensions across all configs for labeling
+        max_core_long = all_configs_df['CoreRange_ maxlongedge'].max()
+        max_core_short = all_configs_df['CoreRange_maxshortedge'].max()
+        max_tech_long = all_configs_df['Technical limit_long edge'].max()
+        max_tech_short = all_configs_df['Technical limit_short edge'].max()
+        
+        annotations = [
+            dict(x=max_core_long, y=max_core_short, 
+                 text=f"{max_core_long}\" × {max_core_short}\"<br>{(max_core_long*max_core_short)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=20, ay=-20,
+                 arrowcolor="rgba(33, 150, 243, 1)",
+                 bgcolor="rgba(33, 150, 243, 0.8)", font=dict(color="white", size=10)),
+            dict(x=max_core_short, y=max_core_long, 
+                 text=f"{max_core_short}\" × {max_core_long}\"<br>{(max_core_short*max_core_long)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=-20, ay=20,
+                 arrowcolor="rgba(33, 150, 243, 1)",
+                 bgcolor="rgba(33, 150, 243, 0.8)", font=dict(color="white", size=10)),
+            dict(x=max_tech_long, y=max_tech_short, 
+                 text=f"{max_tech_long}\" × {max_tech_short}\"<br>{(max_tech_long*max_tech_short)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=30, ay=-30,
+                 arrowcolor="rgba(255, 152, 0, 1)",
+                 bgcolor="rgba(255, 152, 0, 0.8)", font=dict(color="white", size=10)),
+            dict(x=max_tech_short, y=max_tech_long, 
+                 text=f"{max_tech_short}\" × {max_tech_long}\"<br>{(max_tech_short*max_tech_long)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=-30, ay=30,
+                 arrowcolor="rgba(255, 152, 0, 1)",
+                 bgcolor="rgba(255, 152, 0, 0.8)", font=dict(color="white", size=10))
+        ]
+    else:
+        # Single config - use the values from config_data
+        annotations = [
+            dict(x=core_long, y=core_short, 
+                 text=f"{core_long}\" × {core_short}\"<br>{(core_long*core_short)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=20, ay=-20,
+                 arrowcolor="rgba(33, 150, 243, 1)",
+                 bgcolor="rgba(33, 150, 243, 0.8)", font=dict(color="white", size=10)),
+            dict(x=core_short, y=core_long, 
+                 text=f"{core_short}\" × {core_long}\"<br>{(core_short*core_long)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=-20, ay=20,
+                 arrowcolor="rgba(33, 150, 243, 1)",
+                 bgcolor="rgba(33, 150, 243, 0.8)", font=dict(color="white", size=10)),
+            dict(x=tech_long, y=tech_short, 
+                 text=f"{tech_long}\" × {tech_short}\"<br>{(tech_long*tech_short)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=30, ay=-30,
+                 arrowcolor="rgba(255, 152, 0, 1)",
+                 bgcolor="rgba(255, 152, 0, 0.8)", font=dict(color="white", size=10)),
+            dict(x=tech_short, y=tech_long, 
+                 text=f"{tech_short}\" × {tech_long}\"<br>{(tech_short*tech_long)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=-30, ay=30,
+                 arrowcolor="rgba(255, 152, 0, 1)",
+                 bgcolor="rgba(255, 152, 0, 0.8)", font=dict(color="white", size=10))
+        ]
     
     # Update layout
     max_dim_plot = max(tech_long, tech_short) * 1.1
