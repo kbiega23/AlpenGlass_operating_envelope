@@ -243,7 +243,8 @@ def main():
         outer_lite = st.selectbox(
             "Outer Lites Thickness",
             outer_lite_options,
-            format_func=lambda x: x if x == 'All' else f"{x}mm"
+            format_func=lambda x: x if x == 'All' else f"{x}mm",
+            key="outer_lite_select"
         )
     
     with col2:
@@ -251,14 +252,16 @@ def main():
         inner_lite = st.selectbox(
             "Center Lite Thickness",
             inner_lite_options,
-            format_func=lambda x: x if x == 'All' else f"{x}mm"
+            format_func=lambda x: x if x == 'All' else f"{x}mm",
+            key="inner_lite_select"
         )
     
     with col3:
         tempered_options = ['All'] + sorted(df['Tempered or Annealed'].unique().tolist())
         tempered = st.selectbox(
             "Glass Treatment",
-            tempered_options
+            tempered_options,
+            key="treatment_select"
         )
     
     # Filter data based on selection
