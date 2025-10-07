@@ -166,102 +166,97 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
                 all_x.append(None)
                 all_y.append(None)
         
-        # Draw all shapes as ONE trace with consistent color and NO border
+        # Draw all shapes as ONE trace with consistent color and NO borders
         fig.add_trace(go.Scatter(
             x=all_x,
             y=all_y,
             fill='toself',
             fillcolor='rgba(33, 150, 243, 0.3)',
-            line=dict(width=0),  # No borders
+            line=dict(width=0),  # No borders at all
             name='Core Range',
             hoverinfo='skip'
         ))
+    else:
+        # Single configuration - draw one envelope
+        core_x = [min_edge, core_long, core_long, core_short, core_short, 0, 0, min_edge, min_edge]
+        core_y = [0, 0, core_short, core_short, core_long, core_long, min_edge, min_edge, 0]
         
-        # Now compute the outer boundary by tracing the perimeter
-        # Collect all unique edges from all configurations
-        edges = []
-        for idx, row in all_configs_df.iterrows():
-            c_long = row['CoreRange_ maxlongedge']
-            c_short = row['CoreRange_maxshortedge']
-            
-            # Define the 8 edges of each L-shaped polygon
-            rect_edges = [
-                ((min_edge, 0), (c_long, 0)),      # bottom horizontal
-                ((c_long, 0), (c_long, c_short)),   # right vertical (short)
-                ((c_long, c_short), (c_short, c_short)),  # top horizontal (short)
-                ((c_short, c_short), (c_short, c_long)),  # middle vertical
-                ((c_short, c_long), (0, c_long)),   # top horizontal (long)
-                ((0, c_long), (0, min_edge)),       # left vertical
-                ((0, min_edge), (min_edge, min_edge)),  # bottom horizontal (min)
-                ((min_edge, min_edge), (min_edge, 0))   # right vertical (min)
-            ]
-            edges.extend(rect_edges)
+        fig.add_trace(go.Scatter(
+            x=core_x,
+            y=core_y,
+            fill='toself',
+            fillcolor='rgba(33, 150, 243, 0.3)',
+            line=dict(color='rgba(33, 150, 243, 1)', width=3),
+            name='Core Range',
+            hoverinfo='skip'
+        ))right_points), key=lambda p: p[1])
         
-        # Count edge occurrences - outer boundary edges appear only once
-        from collections import Counter
-        edge_counts = Counter()
-        for edge in edges:
-            # Normalize edge direction for counting
-            normalized = tuple(sorted([edge[0], edge[1]]))
-            edge_counts[normalized] += 1
+        # Top edge
+        widest_config = max(configs_list, key=lambda c: c['CoreRange_maxshortedge'])
+        max_short = widest_config['CoreRange_maxshortedge']
         
-        # Outer boundary edges appear an odd number of times
-        outer_edges = [edge for edge, count in edge_counts.items() if count % 2 == 1]
+        # Left edge going down
+        tallest_config = max(configs_list, key=lambda c: c['CoreRange_ maxlongedge'] if c['CoreRange_maxshortedge'] >= max_short else 0)
         
-        # Trace the outer boundary by connecting edges
-        if outer_edges:
-            # Build adjacency map
-            adj = {}
-            for edge in outer_edges:
-                p1, p2 = edge
-                if p1 not in adj:
-                    adj[p1] = []
-                if p2 not in adj:
-                    adj[p2] = []
-                adj[p1].append(p2)
-                adj[p2].append(p1)
-            
-            # Start from (min_edge, 0) and trace the boundary
-            boundary_points = []
-            current = (min_edge, 0)
-            visited = set()
-            
-            while True:
-                boundary_points.append(current)
-                visited.add(current)
-                
-                # Find next unvisited neighbor
-                if current in adj:
-                    next_points = [p for p in adj[current] if p not in visited]
-                    if not next_points:
-                        break
-                    
-                    # Choose the next point that continues the perimeter
-                    # Sort by angle to maintain clockwise direction
-                    if len(next_points) == 1:
-                        current = next_points[0]
-                    else:
-                        # Multiple options - choose the one that goes clockwise
-                        current = next_points[0]
-                else:
-                    break
-                
-                if current == (min_edge, 0):
-                    break
-            
-            # Draw the outer boundary
-            if len(boundary_points) > 2:
-                boundary_x = [p[0] for p in boundary_points] + [boundary_points[0][0]]
-                boundary_y = [p[1] for p in boundary_points] + [boundary_points[0][1]]
-                
-                fig.add_trace(go.Scatter(
-                    x=boundary_x,
-                    y=boundary_y,
-                    mode='lines',
-                    line=dict(color='rgba(33, 150, 243, 1)', width=3),
-                    hoverinfo='skip',
-                    showlegend=False
-                ))
+        # Simplified approach: just draw the key outer perimeter points manually
+        # Collect all unique x and y coordinates
+        all_x_coords = set()
+        all_y_coords = set()
+        for config in configs_list:
+            all_x_coords.add(config['CoreRange_ maxlongedge'])
+            all_x_coords.add(config['CoreRange_maxshortedge'])
+            all_y_coords.add(config['CoreRange_ maxlongedge'])
+            all_y_coords.add(config['CoreRange_maxshortedge'])
+        
+        all_x_coords.add(min_edge)
+        all_x_coords.add(0)
+        all_y_coords.add(min_edge)
+        all_y_coords.add(0)
+        
+        # Build the staircase pattern for the outer boundary
+        # Going clockwise from (min_edge, 0)
+        boundary_x = [min_edge]
+        boundary_y = [0]
+        
+        # Go right along bottom
+        sorted_x = sorted([c['CoreRange_ maxlongedge'] for c in configs_list], reverse=True)
+        for x_val in sorted_x:
+            # Find the max y at this x position
+            max_y_at_x = max([c['CoreRange_maxshortedge'] for c in configs_list if c['CoreRange_ maxlongedge'] >= x_val] + [0])
+            if len(boundary_x) == 1 or x_val != boundary_x[-1]:
+                boundary_x.append(x_val)
+                boundary_y.append(boundary_y[-1])
+                boundary_x.append(x_val)
+                boundary_y.append(max_y_at_x)
+        
+        # Go left along top
+        sorted_y = sorted([c['CoreRange_ maxlongedge'] for c in configs_list], reverse=True)
+        for y_val in sorted_y:
+            max_x_at_y = max([c['CoreRange_maxshortedge'] for c in configs_list if c['CoreRange_ maxlongedge'] >= y_val] + [0])
+            boundary_x.append(max_x_at_y)
+            boundary_y.append(boundary_y[-1])
+            boundary_x.append(max_x_at_y)
+            boundary_y.append(y_val)
+        
+        # Go back down to min_edge
+        boundary_x.append(0)
+        boundary_y.append(boundary_y[-1])
+        boundary_x.append(0)
+        boundary_y.append(min_edge)
+        boundary_x.append(min_edge)
+        boundary_y.append(min_edge)
+        boundary_x.append(min_edge)
+        boundary_y.append(0)
+        
+        # Draw the outer boundary
+        fig.add_trace(go.Scatter(
+            x=boundary_x,
+            y=boundary_y,
+            mode='lines',
+            line=dict(color='rgba(33, 150, 243, 1)', width=3),
+            hoverinfo='skip',
+            showlegend=False
+        ))
     else:
         # Single configuration - draw one envelope
         core_x = [min_edge, core_long, core_long, core_short, core_short, 0, 0, min_edge, min_edge]
