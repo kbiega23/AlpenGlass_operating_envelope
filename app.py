@@ -115,9 +115,10 @@ def create_envelope_plot(config_data, min_edge=16):
         hovertemplate='%{text}<extra></extra>'
     ))
     
-    # Technical Limit envelope (larger, outer rectangle)
-    tech_x = [0, tech_long, tech_long, tech_short, tech_short, 0, 0]
-    tech_y = [0, 0, tech_short, tech_short, tech_long, tech_long, 0]
+    # Technical Limit envelope - modified to exclude bottom-left corner below min_edge
+    # Path goes: start at (16,0), along bottom to max, up, left, down to (0,16), then back to close
+    tech_x = [min_edge, tech_long, tech_long, tech_short, tech_short, 0, 0, min_edge, min_edge]
+    tech_y = [0, 0, tech_short, tech_short, tech_long, tech_long, min_edge, min_edge, 0]
     
     fig.add_trace(go.Scatter(
         x=tech_x,
@@ -129,9 +130,9 @@ def create_envelope_plot(config_data, min_edge=16):
         hoverinfo='skip'
     ))
     
-    # Core Range envelope (smaller, inner rectangle)
-    core_x = [0, core_long, core_long, core_short, core_short, 0, 0]
-    core_y = [0, 0, core_short, core_short, core_long, core_long, 0]
+    # Core Range envelope - modified to exclude bottom-left corner below min_edge
+    core_x = [min_edge, core_long, core_long, core_short, core_short, 0, 0, min_edge, min_edge]
+    core_y = [0, 0, core_short, core_short, core_long, core_long, min_edge, min_edge, 0]
     
     fig.add_trace(go.Scatter(
         x=core_x,
