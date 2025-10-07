@@ -144,46 +144,79 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
     
     # Core Range envelope - draw all configurations if show_all is True
     if show_all and all_configs_df is not None and not all_configs_df.empty:
-        # Create a unified envelope by computing all valid points
-        # Build a set of all points that are valid in ANY configuration
-        max_dim = max(all_configs_df['CoreRange_ maxlongedge'].max(), 
-                     all_configs_df['CoreRange_maxshortedge'].max())
-        
-        # Create a fine grid to determine which points are valid
-        resolution = 1  # 1 inch resolution
-        x_points = np.arange(0, max_dim + resolution, resolution)
-        y_points = np.arange(0, max_dim + resolution, resolution)
-        
-        # For each configuration, mark valid regions
-        valid_grid = np.zeros((len(y_points), len(x_points)), dtype=bool)
+        # Compute the outer boundary polygon that represents the union of all configs
+        # Collect all the corner points from each configuration
+        points = set()
         
         for idx, row in all_configs_df.iterrows():
             c_long = row['CoreRange_ maxlongedge']
             c_short = row['CoreRange_maxshortedge']
             
-            for i, y in enumerate(y_points):
-                for j, x in enumerate(x_points):
-                    # Check if this point is valid for this configuration
-                    # Must meet minimum size AND be within the L-shape of this config
-                    meets_min = (x >= min_edge or y >= min_edge)
-                    in_envelope = ((x <= c_long and y <= c_short) or 
-                                  (x <= c_short and y <= c_long))
-                    
-                    if meets_min and in_envelope:
-                        valid_grid[i, j] = True
+            # Add the corners of this configuration's L-shape
+            # Bottom-right corner (landscape orientation)
+            points.add((c_long, 0))
+            points.add((c_long, c_short))
+            points.add((c_short, c_short))
+            
+            # Top-left corner (portrait orientation)
+            points.add((c_short, c_long))
+            points.add((0, c_long))
+            
+            # Minimum edge boundaries
+            points.add((min_edge, 0))
+            points.add((0, min_edge))
+            points.add((min_edge, min_edge))
         
-        # Now create a contour of the valid region
-        # Use plotly's contour to create a filled region
-        fig.add_trace(go.Contour(
-            x=x_points,
-            y=y_points,
-            z=valid_grid.astype(int),
-            contours=dict(
-                start=0.5,
-                end=0.5,
-                size=1
-            ),
-            showscale=False,
+        # Sort points to create the outer boundary
+        # We need to trace the perimeter clockwise from (min_edge, 0)
+        points_list = sorted(list(points))
+        
+        # Build the outer envelope by finding max dimensions
+        max_long = all_configs_df['CoreRange_ maxlongedge'].max()
+        max_short = all_configs_df['CoreRange_maxshortedge'].max()
+        
+        # Create the L-shaped boundary manually
+        # Start from (min_edge, 0), go to max long edge, then trace the L-shape
+        boundary_x = [min_edge]
+        boundary_y = [0]
+        
+        # Go right to the maximum long edge
+        boundary_x.append(max_long)
+        boundary_y.append(0)
+        
+        # Go up to the maximum short edge
+        boundary_x.append(max_long)
+        boundary_y.append(max_short)
+        
+        # Go left to the maximum short edge position
+        boundary_x.append(max_short)
+        boundary_y.append(max_short)
+        
+        # Go up to the maximum long edge (now as height)
+        boundary_x.append(max_short)
+        boundary_y.append(max_long)
+        
+        # Go left to the left edge
+        boundary_x.append(0)
+        boundary_y.append(max_long)
+        
+        # Go down to min_edge
+        boundary_x.append(0)
+        boundary_y.append(min_edge)
+        
+        # Go right to min_edge
+        boundary_x.append(min_edge)
+        boundary_y.append(min_edge)
+        
+        # Close the shape
+        boundary_x.append(min_edge)
+        boundary_y.append(0)
+        
+        # Draw as a single shape
+        fig.add_trace(go.Scatter(
+            x=boundary_x,
+            y=boundary_y,
+            fill='toself',
             fillcolor='rgba(33, 150, 243, 0.3)',
             line=dict(color='rgba(33, 150, 243, 1)', width=3),
             name='Core Range',
