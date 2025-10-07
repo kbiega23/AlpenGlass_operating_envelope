@@ -144,12 +144,11 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
     
     # Core Range envelope - draw all configurations if show_all is True
     if show_all and all_configs_df is not None and not all_configs_df.empty:
-        # Draw each configuration as a separate semi-transparent rectangle
-        # They will naturally overlap and create the composite envelope
+        # Draw each configuration as a separate rectangle with the SAME color
+        # They will naturally overlap and create a unified composite envelope
         for idx, row in all_configs_df.iterrows():
             c_long = row['CoreRange_ maxlongedge']
             c_short = row['CoreRange_maxshortedge']
-            config_name = row.get('Name', f"{c_long}×{c_short}")
             
             core_x = [min_edge, c_long, c_long, c_short, c_short, 0, 0, min_edge, min_edge]
             core_y = [0, 0, c_short, c_short, c_long, c_long, min_edge, min_edge, 0]
@@ -158,12 +157,23 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
                 x=core_x,
                 y=core_y,
                 fill='toself',
-                fillcolor='rgba(33, 150, 243, 0.15)',  # More transparent for overlapping
-                line=dict(color='rgba(33, 150, 243, 0.6)', width=1),
-                name=config_name,
+                fillcolor='rgba(33, 150, 243, 0.3)',  # Same color for all
+                line=dict(color='rgba(33, 150, 243, 1)', width=1),
+                name='Core Range',
                 hoverinfo='skip',
-                showlegend=True
+                showlegend=False  # Don't show individual configs in legend
             ))
+        
+        # Add one legend entry for all core ranges
+        fig.add_trace(go.Scatter(
+            x=[None],
+            y=[None],
+            mode='markers',
+            marker=dict(size=10, color='rgba(33, 150, 243, 0.3)', 
+                       line=dict(color='rgba(33, 150, 243, 1)', width=2)),
+            name='Core Range',
+            showlegend=True
+        ))
     else:
         # Single configuration - draw one envelope
         core_x = [min_edge, core_long, core_long, core_short, core_short, 0, 0, min_edge, min_edge]
