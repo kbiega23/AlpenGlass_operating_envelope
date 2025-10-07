@@ -47,31 +47,17 @@ def load_data():
     return None
 
 # Create the envelope visualization
-def create_envelope_plot(config_data, min_edge=16, show_multiple=False, unique_configs=None):
-    """Create a plotly figure showing the core range and technical limit envelopes
-    
-    Args:
-        config_data: DataFrame with single config or aggregated max values
-        min_edge: Minimum edge constraint
-        show_multiple: If True, show multiple overlapping configurations
-        unique_configs: List of config rows to display as separate envelopes
-    """
+def create_envelope_plot(config_data, min_edge=16):
+    """Create a plotly figure showing the core range and technical limit envelopes"""
     
     if config_data.empty:
         return None
     
-    # Extract values for the outer bounds
-    if show_multiple and unique_configs and len(unique_configs) > 0:
-        # Use max values for outer bounds
-        core_long = max(c['CoreRange_ maxlongedge'] for c in unique_configs)
-        core_short = max(c['CoreRange_maxshortedge'] for c in unique_configs)
-        tech_long = config_data['Technical limit_long edge'].values[0]
-        tech_short = config_data['Technical limit_short edge'].values[0]
-    else:
-        core_long = config_data['CoreRange_ maxlongedge'].values[0]
-        core_short = config_data['CoreRange_maxshortedge'].values[0]
-        tech_long = config_data['Technical limit_long edge'].values[0]
-        tech_short = config_data['Technical limit_short edge'].values[0]
+    # Extract values
+    core_long = config_data['CoreRange_ maxlongedge'].values[0]
+    core_short = config_data['CoreRange_maxshortedge'].values[0]
+    tech_long = config_data['Technical limit_long edge'].values[0]
+    tech_short = config_data['Technical limit_short edge'].values[0]
     
     fig = go.Figure()
     
@@ -143,51 +129,19 @@ def create_envelope_plot(config_data, min_edge=16, show_multiple=False, unique_c
         hoverinfo='skip'
     ))
     
-    # Add multiple core range configurations if applicable
-    if show_multiple and unique_configs and len(unique_configs) > 1:
-        # Different shades of blue for each configuration
-        blue_shades = [
-            ('rgba(33, 150, 243, 0.4)', 'rgba(33, 150, 243, 1)'),      # Bright blue
-            ('rgba(100, 181, 246, 0.35)', 'rgba(100, 181, 246, 0.9)'), # Light blue
-            ('rgba(66, 165, 245, 0.35)', 'rgba(66, 165, 245, 0.9)'),   # Medium blue
-            ('rgba(30, 136, 229, 0.35)', 'rgba(30, 136, 229, 0.9)'),   # Darker blue
-            ('rgba(21, 101, 192, 0.3)', 'rgba(21, 101, 192, 0.85)')    # Deep blue
-        ]
-        
-        for i, config in enumerate(unique_configs):
-            c_long = config['CoreRange_ maxlongedge']
-            c_short = config['CoreRange_maxshortedge']
-            fill_color, line_color = blue_shades[i % len(blue_shades)]
-            
-            core_x = [0, c_long, c_long, c_short, c_short, 0, 0]
-            core_y = [0, 0, c_short, c_short, c_long, c_long, 0]
-            
-            config_name = config.get('Name', f"{c_long}×{c_short}")
-            
-            fig.add_trace(go.Scatter(
-                x=core_x,
-                y=core_y,
-                fill='toself',
-                fillcolor=fill_color,
-                line=dict(color=line_color, width=2),
-                name=f'{config_name}',
-                hoverinfo='skip',
-                legendgroup='core_configs'
-            ))
-    else:
-        # Single core range envelope
-        core_x = [0, core_long, core_long, core_short, core_short, 0, 0]
-        core_y = [0, 0, core_short, core_short, core_long, core_long, 0]
-        
-        fig.add_trace(go.Scatter(
-            x=core_x,
-            y=core_y,
-            fill='toself',
-            fillcolor='rgba(33, 150, 243, 0.3)',
-            line=dict(color='rgba(33, 150, 243, 1)', width=3),
-            name='Core Range',
-            hoverinfo='skip'
-        ))
+    # Core Range envelope (smaller, inner rectangle)
+    core_x = [0, core_long, core_long, core_short, core_short, 0, 0]
+    core_y = [0, 0, core_short, core_short, core_long, core_long, 0]
+    
+    fig.add_trace(go.Scatter(
+        x=core_x,
+        y=core_y,
+        fill='toself',
+        fillcolor='rgba(33, 150, 243, 0.3)',
+        line=dict(color='rgba(33, 150, 243, 1)', width=3),
+        name='Core Range',
+        hoverinfo='skip'
+    ))
     
     # Add white rectangles to block out areas below minimum size
     # Bottom-left corner below min_edge x min_edge
@@ -311,38 +265,21 @@ def main():
             config_name = filtered_df['Name'].values[0]
             st.subheader(f"Configuration: {config_name}")
         
-        # Find multiple top configurations to show overlapping envelopes
-        # Sort by area and get top configurations that have distinct capabilities
+        # Find the configuration with the largest valid envelope
+        # We need to find configs that give us the largest possible window in any orientation
+        # For each config, calculate the area and find the one with maximum area
         filtered_df['core_area'] = filtered_df['CoreRange_ maxlongedge'] * filtered_df['CoreRange_maxshortedge']
         filtered_df['tech_area'] = filtered_df['Technical limit_long edge'] * filtered_df['Technical limit_short edge']
         
-        # Sort by core area descending
-        sorted_by_core = filtered_df.sort_values('core_area', ascending=False)
+        # Get the config with largest core area
+        max_core_idx = filtered_df['core_area'].idxmax()
+        core_long_max = filtered_df.loc[max_core_idx, 'CoreRange_ maxlongedge']
+        core_short_max = filtered_df.loc[max_core_idx, 'CoreRange_maxshortedge']
         
-        # Get unique configurations based on their dimensions
-        unique_configs = []
-        seen_dimensions = set()
-        
-        for idx, row in sorted_by_core.iterrows():
-            dim_key = (row['CoreRange_ maxlongedge'], row['CoreRange_maxshortedge'])
-            if dim_key not in seen_dimensions:
-                unique_configs.append(row)
-                seen_dimensions.add(dim_key)
-            # Limit to top 5 unique configurations
-            if len(unique_configs) >= 5:
-                break
-        
-        # For technical limits, find the one with largest area
+        # Get the config with largest tech area
         max_tech_idx = filtered_df['tech_area'].idxmax()
         tech_long_max = filtered_df.loc[max_tech_idx, 'Technical limit_long edge']
         tech_short_max = filtered_df.loc[max_tech_idx, 'Technical limit_short edge']
-        
-        # Get dimensions for display
-        if len(unique_configs) > 0:
-            core_long_max = max(c['CoreRange_ maxlongedge'] for c in unique_configs)
-            core_short_max = max(c['CoreRange_maxshortedge'] for c in unique_configs)
-        else:
-            core_long_max = core_short_max = 0
         
         # Create synthetic config data for plotting
         plot_data = pd.DataFrame([{
