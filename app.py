@@ -17,7 +17,7 @@ This tool visualizes the maximum window sizes for different glass configurations
 - **Core Range** (blue): Efficient, low-cost production range
 - **Technical Limit** (orange): Maximum physically achievable size (premium cost)
 - **Minimum Size**: At least one edge must be 16" or greater
-- **White areas**: Do not meet minimum size requirements
+- **White areas**: Do not meet min or max size limits
 """)
 
 # Load data
@@ -216,7 +216,7 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
                 symbol='star',
                 line=dict(color='white', width=2)
             ),
-            text=[f"{custom_width}\" × {custom_height}\""],
+            text=[f"{custom_width}\" × {custom_height}\" ({area_sqft:.1f} sf)"],
             textposition="top center",
             textfont=dict(size=12, color=marker_color, family="Arial Black"),
             name='Your Size',
@@ -530,28 +530,6 @@ def main():
                     st.error("✗ **Below Minimum Size** - At least one edge must be 16\" or greater")
                 else:
                     st.error("✗ **Outside Technical Limits** - This size cannot be manufactured")
-            
-            st.markdown("---")
-            st.markdown("### 📝 Notes")
-            
-            if show_all_configs:
-                st.markdown("""
-                - **Composite envelope**: Shows the union of all matching configurations
-                - **True capabilities**: Outer boundary shows actual maximum achievable in any dimension
-                - Example: Can achieve 120"×59" OR 100"×72", creating an L-shaped envelope
-                - Hover over chart to see dimensions at any point
-                - Select specific values to see one configuration
-                """)
-            else:
-                st.markdown("""
-                - Hover over the chart to see dimensions and pricing info
-                - Hover snaps to nearest 1" increment
-                - White areas do not meet minimum size requirements
-                - The chart shows both possible orientations (portrait and landscape)
-                - Core Range represents the most cost-effective production envelope
-                - Technical Limit sizes will incur a cost premium
-                - Select "All" in any dropdown to see overall maximum sizes
-                """)
     else:
         st.error("No configuration found for the selected parameters. Please check your data file.")
 
