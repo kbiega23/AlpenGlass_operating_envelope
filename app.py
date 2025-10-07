@@ -253,19 +253,20 @@ def main():
             config_name = filtered_df['Name'].values[0]
             st.subheader(f"Configuration: {config_name}")
         
-        # Find the configuration with the largest valid envelope
-        filtered_df['core_area'] = filtered_df['CoreRange_ maxlongedge'] * filtered_df['CoreRange_maxshortedge']
-        filtered_df['tech_area'] = filtered_df['Technical limit_long edge'] * filtered_df['Technical limit_short edge']
-        
-        # Get the config with largest core area
-        max_core_idx = filtered_df['core_area'].idxmax()
-        core_long_max = filtered_df.loc[max_core_idx, 'CoreRange_ maxlongedge']
-        core_short_max = filtered_df.loc[max_core_idx, 'CoreRange_maxshortedge']
-        
-        # Get the config with largest tech area
-        max_tech_idx = filtered_df['tech_area'].idxmax()
-        tech_long_max = filtered_df.loc[max_tech_idx, 'Technical limit_long edge']
-        tech_short_max = filtered_df.loc[max_tech_idx, 'Technical limit_short edge']
+        # Determine how to calculate max dimensions
+        if outer_lite == 'Any' or inner_lite == 'Any' or tempered == 'Any':
+            # When "Any" is selected, show the TRUE maximum envelope across all configs
+            # This creates an L-shape showing you can achieve EITHER the longest dimension OR widest dimension
+            core_long_max = filtered_df['CoreRange_ maxlongedge'].max()
+            core_short_max = filtered_df['CoreRange_maxshortedge'].max()
+            tech_long_max = filtered_df['Technical limit_long edge'].max()
+            tech_short_max = filtered_df['Technical limit_short edge'].max()
+        else:
+            # For specific configuration, use that config's exact dimensions
+            core_long_max = filtered_df['CoreRange_ maxlongedge'].values[0]
+            core_short_max = filtered_df['CoreRange_maxshortedge'].values[0]
+            tech_long_max = filtered_df['Technical limit_long edge'].values[0]
+            tech_short_max = filtered_df['Technical limit_short edge'].values[0]
         
         # Create synthetic config data for plotting
         plot_data = pd.DataFrame([{
@@ -314,15 +315,25 @@ def main():
             # Additional notes
             st.markdown("---")
             st.markdown("### 📝 Notes")
-            st.markdown("""
-            - Hover over the chart to see dimensions and pricing info
-            - Hover snaps to nearest 1" increment
-            - White areas do not meet minimum size requirements
-            - The chart shows both possible orientations (portrait and landscape)
-            - Core Range represents the most cost-effective production envelope
-            - Technical Limit sizes will incur a cost premium
-            - Select "Any" in any dropdown to see overall maximum sizes
-            """)
+            
+            if outer_lite == 'Any' or inner_lite == 'Any' or tempered == 'Any':
+                st.markdown("""
+                - **L-shaped envelope**: Shows the maximum achievable in EITHER dimension across different configurations
+                - Example: You can build 120"×59" OR 100"×72", but not 120"×72" as a single configuration
+                - Hover over the chart to see dimensions and pricing info
+                - White areas do not meet minimum size requirements
+                - Select specific values to see exact limits for one configuration
+                """)
+            else:
+                st.markdown("""
+                - Hover over the chart to see dimensions and pricing info
+                - Hover snaps to nearest 1" increment
+                - White areas do not meet minimum size requirements
+                - The chart shows both possible orientations (portrait and landscape)
+                - Core Range represents the most cost-effective production envelope
+                - Technical Limit sizes will incur a cost premium
+                - Select "Any" in any dropdown to see overall maximum sizes
+                """)
     else:
         st.error("No configuration found for the selected parameters. Please check your data file.")
 
