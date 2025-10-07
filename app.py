@@ -32,10 +32,6 @@ def load_data():
         'alpenglass_max_sizing_data.xlsx',
     ]
     
-    # Debug: show what files are available
-    current_dir = os.getcwd()
-    files_in_dir = os.listdir(current_dir)
-    
     for filename in possible_names:
         if os.path.exists(filename):
             try:
@@ -46,9 +42,7 @@ def load_data():
                 return None
     
     # If we get here, file wasn't found
-    st.error(f"Excel file not found. Looking in: {current_dir}")
-    st.error(f"Files available: {', '.join(files_in_dir)}")
-    st.error("Please ensure 'AlpenGlass max sizing data.xlsx' is in your GitHub repository.")
+    st.error("Excel file not found. Please ensure 'AlpenGlass max sizing data.xlsx' is in your GitHub repository.")
     return None
 
 # Create the envelope visualization for specific configuration
@@ -509,3 +503,6 @@ def main():
             - Specific configurations may have smaller limits
             - Use "Specific Configuration" view to see exact limits for your glass type
             """)
+
+if __name__ == "__main__":
+    main()
