@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 # Title and description
-st.title("🪟 AlpenGlass Window Size Envelope")
+st.title("🪟 AlpenGlass Sizing Limits")
 st.markdown("""
 This tool visualizes the maximum window sizes for different glass configurations.
 - **Core Range** (blue): Efficient, low-cost production range
@@ -115,18 +115,6 @@ def create_envelope_plot(config_data, min_edge=16):
         hovertemplate='%{text}<extra></extra>'
     ))
     
-    # Add white background for areas that don't meet minimum requirements
-    # This creates a white rectangle everywhere, then the colored areas will overlay
-    fig.add_trace(go.Scatter(
-        x=[0, max_dim * 1.1, max_dim * 1.1, 0, 0],
-        y=[0, 0, max_dim * 1.1, max_dim * 1.1, 0],
-        fill='toself',
-        fillcolor='white',
-        line=dict(width=0),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
-    
     # Technical Limit envelope (larger, outer rectangle)
     tech_x = [0, tech_long, tech_long, tech_short, tech_short, 0, 0]
     tech_y = [0, 0, tech_short, tech_short, tech_long, tech_long, 0]
@@ -165,25 +153,6 @@ def create_envelope_plot(config_data, min_edge=16):
         line=dict(width=0),
         showlegend=False,
         hoverinfo='skip'
-    ))
-    
-    # Add minimum size constraint lines (16" minimum on at least one edge)
-    fig.add_trace(go.Scatter(
-        x=[min_edge, min_edge],
-        y=[0, max_dim * 1.1],
-        line=dict(color='rgba(255, 0, 0, 0.5)', width=2, dash='dot'),
-        name=f'Min Size ({min_edge}")',
-        hoverinfo='skip',
-        showlegend=True
-    ))
-    
-    fig.add_trace(go.Scatter(
-        x=[0, max_dim * 1.1],
-        y=[min_edge, min_edge],
-        line=dict(color='rgba(255, 0, 0, 0.5)', width=2, dash='dot'),
-        name=f'Min Size ({min_edge}")',
-        hoverinfo='skip',
-        showlegend=False
     ))
     
     # Add corner labels for key dimensions with hover info
