@@ -144,84 +144,45 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
     
     # Core Range envelope - draw all configurations if show_all is True
     if show_all and all_configs_df is not None and not all_configs_df.empty:
-        # Compute the outer boundary polygon that represents the union of all configs
-        # Collect all the corner points from each configuration
-        points = set()
+        # Draw each configuration but use a technique to avoid color darkening
+        # We'll draw the fills first without borders, then add borders on top
         
+        # First pass: Draw all fills
         for idx, row in all_configs_df.iterrows():
             c_long = row['CoreRange_ maxlongedge']
             c_short = row['CoreRange_maxshortedge']
             
-            # Add the corners of this configuration's L-shape
-            # Bottom-right corner (landscape orientation)
-            points.add((c_long, 0))
-            points.add((c_long, c_short))
-            points.add((c_short, c_short))
+            core_x = [min_edge, c_long, c_long, c_short, c_short, 0, 0, min_edge, min_edge]
+            core_y = [0, 0, c_short, c_short, c_long, c_long, min_edge, min_edge, 0]
             
-            # Top-left corner (portrait orientation)
-            points.add((c_short, c_long))
-            points.add((0, c_long))
+            fig.add_trace(go.Scatter(
+                x=core_x,
+                y=core_y,
+                fill='toself',
+                fillcolor='rgb(33, 150, 243)',  # Solid color, no alpha
+                opacity=0.3,  # Apply opacity to entire trace
+                line=dict(width=0),  # No border on fill
+                name='Core Range',
+                hoverinfo='skip',
+                showlegend=(idx == 0)  # Only show legend for first one
+            ))
+        
+        # Second pass: Draw all borders
+        for idx, row in all_configs_df.iterrows():
+            c_long = row['CoreRange_ maxlongedge']
+            c_short = row['CoreRange_maxshortedge']
             
-            # Minimum edge boundaries
-            points.add((min_edge, 0))
-            points.add((0, min_edge))
-            points.add((min_edge, min_edge))
-        
-        # Sort points to create the outer boundary
-        # We need to trace the perimeter clockwise from (min_edge, 0)
-        points_list = sorted(list(points))
-        
-        # Build the outer envelope by finding max dimensions
-        max_long = all_configs_df['CoreRange_ maxlongedge'].max()
-        max_short = all_configs_df['CoreRange_maxshortedge'].max()
-        
-        # Create the L-shaped boundary manually
-        # Start from (min_edge, 0), go to max long edge, then trace the L-shape
-        boundary_x = [min_edge]
-        boundary_y = [0]
-        
-        # Go right to the maximum long edge
-        boundary_x.append(max_long)
-        boundary_y.append(0)
-        
-        # Go up to the maximum short edge
-        boundary_x.append(max_long)
-        boundary_y.append(max_short)
-        
-        # Go left to the maximum short edge position
-        boundary_x.append(max_short)
-        boundary_y.append(max_short)
-        
-        # Go up to the maximum long edge (now as height)
-        boundary_x.append(max_short)
-        boundary_y.append(max_long)
-        
-        # Go left to the left edge
-        boundary_x.append(0)
-        boundary_y.append(max_long)
-        
-        # Go down to min_edge
-        boundary_x.append(0)
-        boundary_y.append(min_edge)
-        
-        # Go right to min_edge
-        boundary_x.append(min_edge)
-        boundary_y.append(min_edge)
-        
-        # Close the shape
-        boundary_x.append(min_edge)
-        boundary_y.append(0)
-        
-        # Draw as a single shape
-        fig.add_trace(go.Scatter(
-            x=boundary_x,
-            y=boundary_y,
-            fill='toself',
-            fillcolor='rgba(33, 150, 243, 0.3)',
-            line=dict(color='rgba(33, 150, 243, 1)', width=3),
-            name='Core Range',
-            hoverinfo='skip'
-        ))
+            core_x = [min_edge, c_long, c_long, c_short, c_short, 0, 0, min_edge, min_edge]
+            core_y = [0, 0, c_short, c_short, c_long, c_long, min_edge, min_edge, 0]
+            
+            fig.add_trace(go.Scatter(
+                x=core_x,
+                y=core_y,
+                mode='lines',
+                line=dict(color='rgba(33, 150, 243, 1)', width=2),
+                hoverinfo='skip',
+                showlegend=False
+            ))
     else:
         # Single configuration - draw one envelope
         core_x = [min_edge, core_long, core_long, core_short, core_short, 0, 0, min_edge, min_edge]
