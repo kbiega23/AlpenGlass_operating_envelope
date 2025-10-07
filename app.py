@@ -47,17 +47,30 @@ def load_data():
     return None
 
 # Create the envelope visualization
-def create_envelope_plot(config_data, min_edge=16):
-    """Create a plotly figure showing the core range and technical limit envelopes"""
+def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_df=None):
+    """Create a plotly figure showing the core range and technical limit envelopes
+    
+    Args:
+        config_data: DataFrame with single config or aggregated values for bounds
+        min_edge: Minimum edge constraint
+        show_all: If True, draw all configurations from all_configs_df
+        all_configs_df: DataFrame with all matching configurations to display
+    """
     
     if config_data.empty:
         return None
     
-    # Extract values
-    core_long = config_data['CoreRange_ maxlongedge'].values[0]
-    core_short = config_data['CoreRange_maxshortedge'].values[0]
-    tech_long = config_data['Technical limit_long edge'].values[0]
-    tech_short = config_data['Technical limit_short edge'].values[0]
+    # Extract values for bounds
+    if show_all and all_configs_df is not None and not all_configs_df.empty:
+        core_long = all_configs_df['CoreRange_ maxlongedge'].max()
+        core_short = all_configs_df['CoreRange_maxshortedge'].max()
+        tech_long = all_configs_df['Technical limit_long edge'].max()
+        tech_short = all_configs_df['Technical limit_short edge'].max()
+    else:
+        core_long = config_data['CoreRange_ maxlongedge'].values[0]
+        core_short = config_data['CoreRange_maxshortedge'].values[0]
+        tech_long = config_data['Technical limit_long edge'].values[0]
+        tech_short = config_data['Technical limit_short edge'].values[0]
     
     fig = go.Figure()
     
@@ -129,19 +142,42 @@ def create_envelope_plot(config_data, min_edge=16):
         hoverinfo='skip'
     ))
     
-    # Core Range envelope - modified to exclude bottom-left corner below min_edge
-    core_x = [min_edge, core_long, core_long, core_short, core_short, 0, 0, min_edge, min_edge]
-    core_y = [0, 0, core_short, core_short, core_long, core_long, min_edge, min_edge, 0]
-    
-    fig.add_trace(go.Scatter(
-        x=core_x,
-        y=core_y,
-        fill='toself',
-        fillcolor='rgba(33, 150, 243, 0.3)',
-        line=dict(color='rgba(33, 150, 243, 1)', width=3),
-        name='Core Range',
-        hoverinfo='skip'
-    ))
+    # Core Range envelope - draw all configurations if show_all is True
+    if show_all and all_configs_df is not None and not all_configs_df.empty:
+        # Draw each configuration as a separate semi-transparent rectangle
+        # They will naturally overlap and create the composite envelope
+        for idx, row in all_configs_df.iterrows():
+            c_long = row['CoreRange_ maxlongedge']
+            c_short = row['CoreRange_maxshortedge']
+            config_name = row.get('Name', f"{c_long}×{c_short}")
+            
+            core_x = [min_edge, c_long, c_long, c_short, c_short, 0, 0, min_edge, min_edge]
+            core_y = [0, 0, c_short, c_short, c_long, c_long, min_edge, min_edge, 0]
+            
+            fig.add_trace(go.Scatter(
+                x=core_x,
+                y=core_y,
+                fill='toself',
+                fillcolor='rgba(33, 150, 243, 0.15)',  # More transparent for overlapping
+                line=dict(color='rgba(33, 150, 243, 0.6)', width=1),
+                name=config_name,
+                hoverinfo='skip',
+                showlegend=True
+            ))
+    else:
+        # Single configuration - draw one envelope
+        core_x = [min_edge, core_long, core_long, core_short, core_short, 0, 0, min_edge, min_edge]
+        core_y = [0, 0, core_short, core_short, core_long, core_long, min_edge, min_edge, 0]
+        
+        fig.add_trace(go.Scatter(
+            x=core_x,
+            y=core_y,
+            fill='toself',
+            fillcolor='rgba(33, 150, 243, 0.3)',
+            line=dict(color='rgba(33, 150, 243, 1)', width=3),
+            name='Core Range',
+            hoverinfo='skip'
+        ))
     
     # Add corner labels for key dimensions with hover info
     annotations = [
@@ -198,23 +234,23 @@ def main():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        outer_lite_options = ['Any'] + sorted(df['Outer Lites'].unique().tolist())
+        outer_lite_options = ['All'] + sorted(df['Outer Lites'].unique().tolist())
         outer_lite = st.selectbox(
             "Outer Lites Thickness",
             outer_lite_options,
-            format_func=lambda x: x if x == 'Any' else f"{x}mm"
+            format_func=lambda x: x if x == 'All' else f"{x}mm"
         )
     
     with col2:
-        inner_lite_options = ['Any'] + sorted(df['Inner Lite'].unique().tolist())
+        inner_lite_options = ['All'] + sorted(df['Inner Lite'].unique().tolist())
         inner_lite = st.selectbox(
             "Center Lite Thickness",
             inner_lite_options,
-            format_func=lambda x: x if x == 'Any' else f"{x}mm"
+            format_func=lambda x: x if x == 'All' else f"{x}mm"
         )
     
     with col3:
-        tempered_options = ['Any'] + sorted(df['Tempered or Annealed'].unique().tolist())
+        tempered_options = ['All'] + sorted(df['Tempered or Annealed'].unique().tolist())
         tempered = st.selectbox(
             "Glass Treatment",
             tempered_options
@@ -223,46 +259,50 @@ def main():
     # Filter data based on selection
     filtered_df = df.copy()
     
-    if outer_lite != 'Any':
+    if outer_lite != 'All':
         filtered_df = filtered_df[filtered_df['Outer Lites'] == outer_lite]
     
-    if inner_lite != 'Any':
+    if inner_lite != 'All':
         filtered_df = filtered_df[filtered_df['Inner Lite'] == inner_lite]
     
-    if tempered != 'Any':
+    if tempered != 'All':
         filtered_df = filtered_df[filtered_df['Tempered or Annealed'] == tempered]
     
     # Display configuration info
     if not filtered_df.empty:
         # Determine what to show
-        if outer_lite == 'Any' or inner_lite == 'Any' or tempered == 'Any':
+        show_all_configs = (outer_lite == 'All' or inner_lite == 'All' or tempered == 'All')
+        
+        if show_all_configs:
             st.subheader("Overall Maximum Sizes")
             config_description = []
-            if outer_lite != 'Any':
+            if outer_lite != 'All':
                 config_description.append(f"Outer Lites: {outer_lite}mm")
-            if inner_lite != 'Any':
+            if inner_lite != 'All':
                 config_description.append(f"Center Lite: {inner_lite}mm")
-            if tempered != 'Any':
+            if tempered != 'All':
                 config_description.append(f"Treatment: {tempered}")
             
             if config_description:
                 st.caption(f"Filtered by: {', '.join(config_description)}")
             else:
-                st.caption("Showing maximum sizes across all configurations")
+                st.caption("Showing all available configurations")
         else:
             config_name = filtered_df['Name'].values[0]
             st.subheader(f"Configuration: {config_name}")
         
-        # Determine how to calculate max dimensions
-        if outer_lite == 'Any' or inner_lite == 'Any' or tempered == 'Any':
-            # When "Any" is selected, show the TRUE maximum envelope across all configs
-            # This creates an L-shape showing you can achieve EITHER the longest dimension OR widest dimension
+        # Determine dimensions to display
+        if show_all_configs:
+            # Get overall max dimensions for display
             core_long_max = filtered_df['CoreRange_ maxlongedge'].max()
             core_short_max = filtered_df['CoreRange_maxshortedge'].max()
-            tech_long_max = filtered_df['Technical limit_long edge'].max()
-            tech_short_max = filtered_df['Technical limit_short edge'].max()
+            
+            filtered_df['tech_area'] = filtered_df['Technical limit_long edge'] * filtered_df['Technical limit_short edge']
+            max_tech_idx = filtered_df['tech_area'].idxmax()
+            tech_long_max = filtered_df.loc[max_tech_idx, 'Technical limit_long edge']
+            tech_short_max = filtered_df.loc[max_tech_idx, 'Technical limit_short edge']
         else:
-            # For specific configuration, use that config's exact dimensions
+            # Single configuration
             core_long_max = filtered_df['CoreRange_ maxlongedge'].values[0]
             core_short_max = filtered_df['CoreRange_maxshortedge'].values[0]
             tech_long_max = filtered_df['Technical limit_long edge'].values[0]
@@ -281,7 +321,7 @@ def main():
         
         with plot_col:
             # Create and display the plot
-            fig = create_envelope_plot(plot_data)
+            fig = create_envelope_plot(plot_data, show_all=show_all_configs, all_configs_df=filtered_df if show_all_configs else None)
             if fig:
                 st.plotly_chart(fig, use_container_width=True)
         
@@ -290,12 +330,20 @@ def main():
             
             # Core Range specifications
             st.markdown("**Core Range** (Efficient Production)")
-            st.info(f"""
-            - Maximum Long Edge: **{core_long_max}\"**
-            - Maximum Short Edge: **{core_short_max}\"**
-            - Max Size: **{core_long_max}\" × {core_short_max}\"**
-            - Max Area: **{core_long_max * core_short_max} sq in** ({(core_long_max * core_short_max)/144:.1f} sq ft)
-            """)
+            if show_all_configs:
+                st.info(f"""
+                - Maximum Long Edge: **{core_long_max}\"** (across all configs)
+                - Maximum Short Edge: **{core_short_max}\"** (across all configs)
+                - Chart shows {len(filtered_df)} overlapping configurations
+                - Darker blue areas indicate more configuration options
+                """)
+            else:
+                st.info(f"""
+                - Maximum Long Edge: **{core_long_max}\"**
+                - Maximum Short Edge: **{core_short_max}\"**
+                - Max Size: **{core_long_max}\" × {core_short_max}\"**
+                - Max Area: **{core_long_max * core_short_max} sq in** ({(core_long_max * core_short_max)/144:.1f} sq ft)
+                """)
             
             # Technical Limit specifications
             st.markdown("**Technical Limit** (Premium Cost)")
@@ -316,13 +364,13 @@ def main():
             st.markdown("---")
             st.markdown("### 📝 Notes")
             
-            if outer_lite == 'Any' or inner_lite == 'Any' or tempered == 'Any':
+            if show_all_configs:
                 st.markdown("""
-                - **L-shaped envelope**: Shows the maximum achievable in EITHER dimension across different configurations
-                - Example: You can build 120"×59" OR 100"×72", but not 120"×72" as a single configuration
-                - Hover over the chart to see dimensions and pricing info
-                - White areas do not meet minimum size requirements
-                - Select specific values to see exact limits for one configuration
+                - **Overlapping rectangles**: Each configuration shown as a semi-transparent rectangle
+                - **Composite envelope**: Where rectangles overlap, color is darker
+                - **True capabilities**: Outer boundary shows actual maximum achievable
+                - Hover over chart to see dimensions at any point
+                - Select specific values to see one configuration
                 """)
             else:
                 st.markdown("""
