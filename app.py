@@ -36,9 +36,7 @@ def load_data():
     for filename in possible_names:
         if os.path.exists(filename):
             try:
-                df = pd.read_excel(filename, sheet_name='Tempered - Triples')
-                # Filter to only tempered glass
-                df = df[df['Tempered or Annealed'] == 'Tempered'].copy()
+                df = pd.read_excel(filename)
                 return df
             except Exception as e:
                 st.error(f"Error reading {filename}: {str(e)}")
@@ -49,7 +47,7 @@ def load_data():
     return None
 
 # Create the envelope visualization
-def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_df=None, custom_point=None):
+def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_df=None):
     """Create a plotly figure showing the core range and technical limit envelopes"""
     
     if config_data.empty:
@@ -57,15 +55,15 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
     
     # Extract values for bounds
     if show_all and all_configs_df is not None and not all_configs_df.empty:
-        core_long = all_configs_df['CoreRange_ maxlongedge_inches'].max()
-        core_short = all_configs_df['CoreRange_maxshortedge_inches'].max()
-        tech_long = all_configs_df['Technical_limit_long edge_inches'].max()
-        tech_short = all_configs_df['Technical_limit_short edge_inches'].max()
+        core_long = all_configs_df['CoreRange_ maxlongedge'].max()
+        core_short = all_configs_df['CoreRange_maxshortedge'].max()
+        tech_long = all_configs_df['Technical limit_long edge'].max()
+        tech_short = all_configs_df['Technical limit_short edge'].max()
     else:
-        core_long = config_data['CoreRange_ maxlongedge_inches'].values[0]
-        core_short = config_data['CoreRange_maxshortedge_inches'].values[0]
-        tech_long = config_data['Technical_limit_long edge_inches'].values[0]
-        tech_short = config_data['Technical_limit_short edge_inches'].values[0]
+        core_long = config_data['CoreRange_ maxlongedge'].values[0]
+        core_short = config_data['CoreRange_maxshortedge'].values[0]
+        tech_long = config_data['Technical limit_long edge'].values[0]
+        tech_short = config_data['Technical limit_short edge'].values[0]
     
     fig = go.Figure()
     
@@ -146,8 +144,8 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
         all_y = []
         
         for idx, row in all_configs_df.iterrows():
-            c_long = row['CoreRange_ maxlongedge_inches']
-            c_short = row['CoreRange_maxshortedge_inches']
+            c_long = row['CoreRange_ maxlongedge']
+            c_short = row['CoreRange_maxshortedge']
             
             # Add this rectangle's coordinates
             rect_x = [min_edge, c_long, c_long, c_short, c_short, 0, 0, min_edge, min_edge]
@@ -186,51 +184,6 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
             hoverinfo='skip'
         ))
     
-    # Add custom point if provided
-    if custom_point is not None:
-        custom_width, custom_height = custom_point
-        
-        # Determine what range this point falls in
-        meets_min = (custom_width >= min_edge or custom_height >= min_edge)
-        in_tech = ((custom_width <= tech_long and custom_height <= tech_short) or 
-                  (custom_width <= tech_short and custom_height <= tech_long)) and meets_min
-        in_core = ((custom_width <= core_long and custom_height <= core_short) or 
-                  (custom_width <= core_short and custom_height <= core_long)) and meets_min
-        
-        # Determine color and status
-        if in_core:
-            marker_color = 'rgb(0, 200, 0)'  # Green
-            status_text = "✓ Within Core Range"
-        elif in_tech:
-            marker_color = 'rgb(255, 165, 0)'  # Orange
-            status_text = "⚠ Within Technical Limit (Premium)"
-        elif not meets_min:
-            marker_color = 'rgb(255, 0, 0)'  # Red
-            status_text = "✗ Below Minimum Size"
-        else:
-            marker_color = 'rgb(255, 0, 0)'  # Red
-            status_text = "✗ Outside Technical Limits"
-        
-        area_sqft = (custom_width * custom_height) / 144
-        
-        # Add the custom point marker
-        fig.add_trace(go.Scatter(
-            x=[custom_width],
-            y=[custom_height],
-            mode='markers+text',
-            marker=dict(
-                size=15,
-                color=marker_color,
-                symbol='star',
-                line=dict(color='white', width=2)
-            ),
-            text=[f"{custom_width}\" × {custom_height}\""],
-            textposition="top center",
-            textfont=dict(size=12, color=marker_color),
-            name='Your Size',
-            hovertemplate=f"<b>Your Custom Size</b><br>Width: {custom_width}\"<br>Height: {custom_height}\"<br>Area: {area_sqft:.1f} sq ft<br>{status_text}<extra></extra>"
-        ))
-    
     # Add corner labels for key dimensions with hover info
     annotations = [
         dict(x=core_long, y=core_short, 
@@ -257,10 +210,6 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
     
     # Update layout
     max_dim_plot = max(tech_long, tech_short) * 1.1
-    
-    # If custom point is outside current bounds, expand the plot
-    if custom_point is not None:
-        max_dim_plot = max(max_dim_plot, custom_point[0] * 1.1, custom_point[1] * 1.1)
     
     fig.update_layout(
         xaxis_title="Width (inches)",
@@ -314,48 +263,12 @@ def main():
         inner_lite = 'All' if inner_lite_display == 'All' else float(inner_lite_display.replace('mm', ''))
     
     with col3:
-        tempered_options = ['All', 'Tempered']
+        tempered_options = ['All'] + sorted(df['Tempered or Annealed'].unique().tolist())
         tempered = st.selectbox(
             "Glass Treatment",
             tempered_options,
             key="treatment_select"
         )
-    
-    # Add custom size input section
-    st.markdown("---")
-    st.markdown("### 🎯 Check Your Custom Size")
-    
-    size_col1, size_col2, size_col3 = st.columns([1, 1, 2])
-    
-    with size_col1:
-        custom_width = st.number_input(
-            "Width (inches)",
-            min_value=0.0,
-            max_value=200.0,
-            value=0.0,
-            step=1.0,
-            key="custom_width"
-        )
-    
-    with size_col2:
-        custom_height = st.number_input(
-            "Height (inches)",
-            min_value=0.0,
-            max_value=200.0,
-            value=0.0,
-            step=1.0,
-            key="custom_height"
-        )
-    
-    with size_col3:
-        st.markdown("<br>", unsafe_allow_html=True)  # Spacing
-        if custom_width > 0 and custom_height > 0:
-            custom_area = (custom_width * custom_height) / 144
-            st.info(f"**Custom Size:** {custom_width}\" × {custom_height}\" ({custom_area:.1f} sq ft)")
-        else:
-            st.caption("Enter dimensions to plot your custom size on the chart")
-    
-    st.markdown("---")
     
     # Filter data based on selection
     filtered_df = df.copy()
@@ -395,36 +308,34 @@ def main():
         # Determine dimensions to display
         if show_all_configs:
             # Get overall max dimensions for display
-            core_long_max = filtered_df['CoreRange_ maxlongedge_inches'].max()
-            core_short_max = filtered_df['CoreRange_maxshortedge_inches'].max()
-            tech_long_max = filtered_df['Technical_limit_long edge_inches'].max()
-            tech_short_max = filtered_df['Technical_limit_short edge_inches'].max()
+            core_long_max = filtered_df['CoreRange_ maxlongedge'].max()
+            core_short_max = filtered_df['CoreRange_maxshortedge'].max()
+            
+            filtered_df['tech_area'] = filtered_df['Technical limit_long edge'] * filtered_df['Technical limit_short edge']
+            max_tech_idx = filtered_df['tech_area'].idxmax()
+            tech_long_max = filtered_df.loc[max_tech_idx, 'Technical limit_long edge']
+            tech_short_max = filtered_df.loc[max_tech_idx, 'Technical limit_short edge']
         else:
             # Single configuration
-            core_long_max = filtered_df['CoreRange_ maxlongedge_inches'].values[0]
-            core_short_max = filtered_df['CoreRange_maxshortedge_inches'].values[0]
-            tech_long_max = filtered_df['Technical_limit_long edge_inches'].values[0]
-            tech_short_max = filtered_df['Technical_limit_short edge_inches'].values[0]
+            core_long_max = filtered_df['CoreRange_ maxlongedge'].values[0]
+            core_short_max = filtered_df['CoreRange_maxshortedge'].values[0]
+            tech_long_max = filtered_df['Technical limit_long edge'].values[0]
+            tech_short_max = filtered_df['Technical limit_short edge'].values[0]
         
         # Create synthetic config data for plotting
         plot_data = pd.DataFrame([{
-            'CoreRange_ maxlongedge_inches': core_long_max,
-            'CoreRange_maxshortedge_inches': core_short_max,
-            'Technical_limit_long edge_inches': tech_long_max,
-            'Technical_limit_short edge_inches': tech_short_max
+            'CoreRange_ maxlongedge': core_long_max,
+            'CoreRange_maxshortedge': core_short_max,
+            'Technical limit_long edge': tech_long_max,
+            'Technical limit_short edge': tech_short_max
         }])
-        
-        # Prepare custom point if entered
-        custom_point = None
-        if custom_width > 0 and custom_height > 0:
-            custom_point = (custom_width, custom_height)
         
         # Create two columns for the plot and specifications
         plot_col, specs_col = st.columns([2, 1])
         
         with plot_col:
             # Create and display the plot
-            fig = create_envelope_plot(plot_data, show_all=show_all_configs, all_configs_df=filtered_df if show_all_configs else None, custom_point=custom_point)
+            fig = create_envelope_plot(plot_data, show_all=show_all_configs, all_configs_df=filtered_df if show_all_configs else None)
             if fig:
                 st.plotly_chart(fig, use_container_width=True)
         
@@ -462,27 +373,6 @@ def main():
             st.error(f"""
             - At least one edge must be **16\"** or greater
             """)
-            
-            # Show custom size status if entered
-            if custom_point is not None:
-                st.markdown("---")
-                st.markdown("### 🎯 Your Custom Size Status")
-                
-                custom_width, custom_height = custom_point
-                meets_min = (custom_width >= 16 or custom_height >= 16)
-                in_tech = ((custom_width <= tech_long_max and custom_height <= tech_short_max) or 
-                          (custom_width <= tech_short_max and custom_height <= tech_long_max)) and meets_min
-                in_core = ((custom_width <= core_long_max and custom_height <= core_short_max) or 
-                          (custom_width <= core_short_max and custom_height <= core_long_max)) and meets_min
-                
-                if in_core:
-                    st.success("✓ **Within Core Range** - Standard pricing applies")
-                elif in_tech:
-                    st.warning("⚠ **Within Technical Limit** - Premium pricing applies for this size")
-                elif not meets_min:
-                    st.error("✗ **Below Minimum Size** - At least one edge must be 16\" or greater")
-                else:
-                    st.error("✗ **Outside Technical Limits** - This size cannot be manufactured")
             
             # Additional notes
             st.markdown("---")
