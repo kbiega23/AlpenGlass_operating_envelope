@@ -144,45 +144,40 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
     
     # Core Range envelope - draw all configurations if show_all is True
     if show_all and all_configs_df is not None and not all_configs_df.empty:
-        # Draw each configuration but use a technique to avoid color darkening
-        # We'll draw the fills first without borders, then add borders on top
+        # Create a single unified shape by using SVG path
+        # Collect all rectangles and create a path that represents their union
         
-        # First pass: Draw all fills
+        # For simplicity and correctness, we'll use Plotly's ability to draw multiple
+        # disconnected polygons in a single trace using None separators
+        all_x = []
+        all_y = []
+        
         for idx, row in all_configs_df.iterrows():
             c_long = row['CoreRange_ maxlongedge']
             c_short = row['CoreRange_maxshortedge']
             
-            core_x = [min_edge, c_long, c_long, c_short, c_short, 0, 0, min_edge, min_edge]
-            core_y = [0, 0, c_short, c_short, c_long, c_long, min_edge, min_edge, 0]
+            # Add this rectangle's coordinates
+            rect_x = [min_edge, c_long, c_long, c_short, c_short, 0, 0, min_edge, min_edge]
+            rect_y = [0, 0, c_short, c_short, c_long, c_long, min_edge, min_edge, 0]
             
-            fig.add_trace(go.Scatter(
-                x=core_x,
-                y=core_y,
-                fill='toself',
-                fillcolor='rgb(33, 150, 243)',  # Solid color, no alpha
-                opacity=0.3,  # Apply opacity to entire trace
-                line=dict(width=0),  # No border on fill
-                name='Core Range',
-                hoverinfo='skip',
-                showlegend=(idx == 0)  # Only show legend for first one
-            ))
+            all_x.extend(rect_x)
+            all_y.extend(rect_y)
+            
+            # Add None separator for next shape (except for last one)
+            if idx < len(all_configs_df) - 1:
+                all_x.append(None)
+                all_y.append(None)
         
-        # Second pass: Draw all borders
-        for idx, row in all_configs_df.iterrows():
-            c_long = row['CoreRange_ maxlongedge']
-            c_short = row['CoreRange_maxshortedge']
-            
-            core_x = [min_edge, c_long, c_long, c_short, c_short, 0, 0, min_edge, min_edge]
-            core_y = [0, 0, c_short, c_short, c_long, c_long, min_edge, min_edge, 0]
-            
-            fig.add_trace(go.Scatter(
-                x=core_x,
-                y=core_y,
-                mode='lines',
-                line=dict(color='rgba(33, 150, 243, 1)', width=2),
-                hoverinfo='skip',
-                showlegend=False
-            ))
+        # Draw all shapes as ONE trace with consistent color
+        fig.add_trace(go.Scatter(
+            x=all_x,
+            y=all_y,
+            fill='toself',
+            fillcolor='rgba(33, 150, 243, 0.3)',
+            line=dict(color='rgba(33, 150, 243, 1)', width=2),
+            name='Core Range',
+            hoverinfo='skip'
+        ))
     else:
         # Single configuration - draw one envelope
         core_x = [min_edge, core_long, core_long, core_short, core_short, 0, 0, min_edge, min_edge]
@@ -406,3 +401,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
