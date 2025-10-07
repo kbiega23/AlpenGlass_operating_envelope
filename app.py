@@ -116,7 +116,6 @@ def create_envelope_plot(config_data, min_edge=16):
     ))
     
     # Technical Limit envelope - modified to exclude bottom-left corner below min_edge
-    # Path goes: start at (16,0), along bottom to max, up, left, down to (0,16), then back to close
     tech_x = [min_edge, tech_long, tech_long, tech_short, tech_short, 0, 0, min_edge, min_edge]
     tech_y = [0, 0, tech_short, tech_short, tech_long, tech_long, min_edge, min_edge, 0]
     
@@ -141,10 +140,6 @@ def create_envelope_plot(config_data, min_edge=16):
         fillcolor='rgba(33, 150, 243, 0.3)',
         line=dict(color='rgba(33, 150, 243, 1)', width=3),
         name='Core Range',
-        hoverinfo='skip'
-    ))
-    
-    # Add corner labels for key dimensions with hover infolegend=False,
         hoverinfo='skip'
     ))
     
@@ -259,8 +254,6 @@ def main():
             st.subheader(f"Configuration: {config_name}")
         
         # Find the configuration with the largest valid envelope
-        # We need to find configs that give us the largest possible window in any orientation
-        # For each config, calculate the area and find the one with maximum area
         filtered_df['core_area'] = filtered_df['CoreRange_ maxlongedge'] * filtered_df['CoreRange_maxshortedge']
         filtered_df['tech_area'] = filtered_df['Technical limit_long edge'] * filtered_df['Technical limit_short edge']
         
