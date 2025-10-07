@@ -48,14 +48,7 @@ def load_data():
 
 # Create the envelope visualization
 def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_df=None):
-    """Create a plotly figure showing the core range and technical limit envelopes
-    
-    Args:
-        config_data: DataFrame with single config or aggregated values for bounds
-        min_edge: Minimum edge constraint
-        show_all: If True, draw all configurations from all_configs_df
-        all_configs_df: DataFrame with all matching configurations to display
-    """
+    """Create a plotly figure showing the core range and technical limit envelopes"""
     
     if config_data.empty:
         return None
@@ -175,87 +168,6 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
             line=dict(width=0),  # No borders at all
             name='Core Range',
             hoverinfo='skip'
-        ))
-    else:
-        # Single configuration - draw one envelope
-        core_x = [min_edge, core_long, core_long, core_short, core_short, 0, 0, min_edge, min_edge]
-        core_y = [0, 0, core_short, core_short, core_long, core_long, min_edge, min_edge, 0]
-        
-        fig.add_trace(go.Scatter(
-            x=core_x,
-            y=core_y,
-            fill='toself',
-            fillcolor='rgba(33, 150, 243, 0.3)',
-            line=dict(color='rgba(33, 150, 243, 1)', width=3),
-            name='Core Range',
-            hoverinfo='skip'
-        ))right_points), key=lambda p: p[1])
-        
-        # Top edge
-        widest_config = max(configs_list, key=lambda c: c['CoreRange_maxshortedge'])
-        max_short = widest_config['CoreRange_maxshortedge']
-        
-        # Left edge going down
-        tallest_config = max(configs_list, key=lambda c: c['CoreRange_ maxlongedge'] if c['CoreRange_maxshortedge'] >= max_short else 0)
-        
-        # Simplified approach: just draw the key outer perimeter points manually
-        # Collect all unique x and y coordinates
-        all_x_coords = set()
-        all_y_coords = set()
-        for config in configs_list:
-            all_x_coords.add(config['CoreRange_ maxlongedge'])
-            all_x_coords.add(config['CoreRange_maxshortedge'])
-            all_y_coords.add(config['CoreRange_ maxlongedge'])
-            all_y_coords.add(config['CoreRange_maxshortedge'])
-        
-        all_x_coords.add(min_edge)
-        all_x_coords.add(0)
-        all_y_coords.add(min_edge)
-        all_y_coords.add(0)
-        
-        # Build the staircase pattern for the outer boundary
-        # Going clockwise from (min_edge, 0)
-        boundary_x = [min_edge]
-        boundary_y = [0]
-        
-        # Go right along bottom
-        sorted_x = sorted([c['CoreRange_ maxlongedge'] for c in configs_list], reverse=True)
-        for x_val in sorted_x:
-            # Find the max y at this x position
-            max_y_at_x = max([c['CoreRange_maxshortedge'] for c in configs_list if c['CoreRange_ maxlongedge'] >= x_val] + [0])
-            if len(boundary_x) == 1 or x_val != boundary_x[-1]:
-                boundary_x.append(x_val)
-                boundary_y.append(boundary_y[-1])
-                boundary_x.append(x_val)
-                boundary_y.append(max_y_at_x)
-        
-        # Go left along top
-        sorted_y = sorted([c['CoreRange_ maxlongedge'] for c in configs_list], reverse=True)
-        for y_val in sorted_y:
-            max_x_at_y = max([c['CoreRange_maxshortedge'] for c in configs_list if c['CoreRange_ maxlongedge'] >= y_val] + [0])
-            boundary_x.append(max_x_at_y)
-            boundary_y.append(boundary_y[-1])
-            boundary_x.append(max_x_at_y)
-            boundary_y.append(y_val)
-        
-        # Go back down to min_edge
-        boundary_x.append(0)
-        boundary_y.append(boundary_y[-1])
-        boundary_x.append(0)
-        boundary_y.append(min_edge)
-        boundary_x.append(min_edge)
-        boundary_y.append(min_edge)
-        boundary_x.append(min_edge)
-        boundary_y.append(0)
-        
-        # Draw the outer boundary
-        fig.add_trace(go.Scatter(
-            x=boundary_x,
-            y=boundary_y,
-            mode='lines',
-            line=dict(color='rgba(33, 150, 243, 1)', width=3),
-            hoverinfo='skip',
-            showlegend=False
         ))
     else:
         # Single configuration - draw one envelope
@@ -473,7 +385,7 @@ def main():
                 - The chart shows both possible orientations (portrait and landscape)
                 - Core Range represents the most cost-effective production envelope
                 - Technical Limit sizes will incur a cost premium
-                - Select "Any" in any dropdown to see overall maximum sizes
+                - Select "All" in any dropdown to see overall maximum sizes
                 """)
     else:
         st.error("No configuration found for the selected parameters. Please check your data file.")
