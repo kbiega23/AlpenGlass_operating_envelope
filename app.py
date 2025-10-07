@@ -55,15 +55,16 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
     
     # Extract values for bounds
     if show_all and all_configs_df is not None and not all_configs_df.empty:
-        core_long = all_configs_df['CoreRange_ maxlongedge'].max()
-        core_short = all_configs_df['CoreRange_maxshortedge'].max()
-        tech_long = all_configs_df['Technical limit_long edge'].max()
-        tech_short = all_configs_df['Technical limit_short edge'].max()
+        # For "All", we need to track core and tech separately
+        core_long = all_configs_df['CoreRange_ maxlongedge_inches'].max()
+        core_short = all_configs_df['CoreRange_maxshortedge_inches'].max()
+        tech_long = all_configs_df['Technical_limit_long edge_inches'].max()
+        tech_short = all_configs_df['Technical_limit_short edge_inches'].max()
     else:
-        core_long = config_data['CoreRange_ maxlongedge'].values[0]
-        core_short = config_data['CoreRange_maxshortedge'].values[0]
-        tech_long = config_data['Technical limit_long edge'].values[0]
-        tech_short = config_data['Technical limit_short edge'].values[0]
+        core_long = config_data['CoreRange_ maxlongedge_inches'].values[0]
+        core_short = config_data['CoreRange_maxshortedge_inches'].values[0]
+        tech_long = config_data['Technical_limit_long edge_inches'].values[0]
+        tech_short = config_data['Technical_limit_short edge_inches'].values[0]
     
     fig = go.Figure()
     
@@ -144,8 +145,8 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
         all_y = []
         
         for idx, row in all_configs_df.iterrows():
-            c_long = row['CoreRange_ maxlongedge']
-            c_short = row['CoreRange_maxshortedge']
+            c_long = row['CoreRange_ maxlongedge_inches']
+            c_short = row['CoreRange_maxshortedge_inches']
             
             # Add this rectangle's coordinates
             rect_x = [min_edge, c_long, c_long, c_short, c_short, 0, 0, min_edge, min_edge]
@@ -235,61 +236,76 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
         annotations = []
         
         # Get all unique corner combinations from the configs
-        unique_corners = set()
+        core_corners_set = set()
+        tech_corners_set = set()
+        
         for idx, row in all_configs_df.iterrows():
-            c_long = row['CoreRange_ maxlongedge']
-            c_short = row['CoreRange_maxshortedge']
-            t_long = row['Technical limit_long edge']
-            t_short = row['Technical limit_short edge']
+            c_long = row['CoreRange_ maxlongedge_inches']
+            c_short = row['CoreRange_maxshortedge_inches']
+            t_long = row['Technical_limit_long edge_inches']
+            t_short = row['Technical_limit_short edge_inches']
             
-            # Add core range corners
-            unique_corners.add(('core', c_long, c_short))
-            unique_corners.add(('core', c_short, c_long))
+            # Add core range corners (both orientations)
+            core_corners_set.add((c_long, c_short))
+            core_corners_set.add((c_short, c_long))
             
-            # Add tech limit corners
-            unique_corners.add(('tech', t_long, t_short))
-            unique_corners.add(('tech', t_short, t_long))
+            # Add tech limit corners (both orientations)
+            tech_corners_set.add((t_long, t_short))
+            tech_corners_set.add((t_short, t_long))
         
-        # Sort and filter to show only the most extreme corners
-        core_corners = [(x, y) for t, x, y in unique_corners if t == 'core']
-        tech_corners = [(x, y) for t, x, y in unique_corners if t == 'tech']
+        # Convert to lists and sort
+        core_corners = sorted(list(core_corners_set), key=lambda p: (p[0], p[1]), reverse=True)
+        tech_corners = sorted(list(tech_corners_set), key=lambda p: (p[0], p[1]), reverse=True)
         
-        # Find the most extreme core corners (furthest from origin)
-        if core_corners:
-            max_core_x = max(core_corners, key=lambda p: p[0])
-            max_core_y = max(core_corners, key=lambda p: p[1])
-            
-            # Only add labels for distinct corners
-            core_labels = set([max_core_x, max_core_y])
-            for x, y in core_labels:
-                annotations.append(
-                    dict(x=x, y=y, 
-                         text=f"{x}\" × {y}\"<br>{(x*y)/144:.1f} sq ft",
-                         showarrow=True, arrowhead=2, 
-                         ax=20 if x > y else -20, 
-                         ay=-20 if x > y else 20,
-                         arrowcolor="rgba(33, 150, 243, 1)",
-                         bgcolor="rgba(33, 150, 243, 0.8)", 
-                         font=dict(color="white", size=10))
-                )
+        # For core range, show up to 4 most extreme corners
+        # Find corners that are on the outer boundary (Pareto frontier)
+        core_frontier = []
+        for x, y in core_corners:
+            # A point is on the frontier if no other point dominates it in both dimensions
+            is_dominated = False
+            for x2, y2 in core_corners:
+                if x2 > x and y2 > y:
+                    is_dominated = True
+                    break
+            if not is_dominated:
+                core_frontier.append((x, y))
         
-        # Find the most extreme tech corners
-        if tech_corners:
-            max_tech_x = max(tech_corners, key=lambda p: p[0])
-            max_tech_y = max(tech_corners, key=lambda p: p[1])
-            
-            tech_labels = set([max_tech_x, max_tech_y])
-            for x, y in tech_labels:
-                annotations.append(
-                    dict(x=x, y=y, 
-                         text=f"{x}\" × {y}\"<br>{(x*y)/144:.1f} sq ft",
-                         showarrow=True, arrowhead=2, 
-                         ax=30 if x > y else -30, 
-                         ay=-30 if x > y else 30,
-                         arrowcolor="rgba(255, 152, 0, 1)",
-                         bgcolor="rgba(255, 152, 0, 0.8)", 
-                         font=dict(color="white", size=10))
-                )
+        # Add labels for core frontier points (limit to 4 for clarity)
+        for i, (x, y) in enumerate(core_frontier[:4]):
+            annotations.append(
+                dict(x=x, y=y, 
+                     text=f"{x}\" × {y}\"<br>{(x*y)/144:.1f} sq ft",
+                     showarrow=True, arrowhead=2, 
+                     ax=20 if x >= y else -20, 
+                     ay=-20 if x >= y else 20,
+                     arrowcolor="rgba(33, 150, 243, 1)",
+                     bgcolor="rgba(33, 150, 243, 0.8)", 
+                     font=dict(color="white", size=10))
+            )
+        
+        # For tech limit, show up to 4 most extreme corners
+        tech_frontier = []
+        for x, y in tech_corners:
+            is_dominated = False
+            for x2, y2 in tech_corners:
+                if x2 > x and y2 > y:
+                    is_dominated = True
+                    break
+            if not is_dominated:
+                tech_frontier.append((x, y))
+        
+        # Add labels for tech frontier points (limit to 4 for clarity)
+        for i, (x, y) in enumerate(tech_frontier[:4]):
+            annotations.append(
+                dict(x=x, y=y, 
+                     text=f"{x}\" × {y}\"<br>{(x*y)/144:.1f} sq ft",
+                     showarrow=True, arrowhead=2, 
+                     ax=30 if x >= y else -30, 
+                     ay=-30 if x >= y else 30,
+                     arrowcolor="rgba(255, 152, 0, 1)",
+                     bgcolor="rgba(255, 152, 0, 0.8)", 
+                     font=dict(color="white", size=10))
+            )
     else:
         # Single config - use the values from config_data
         annotations = [
@@ -455,31 +471,31 @@ def main():
         # Determine how to calculate max dimensions
         if outer_lite == 'All' or inner_lite == 'All' or tempered == 'All':
             # When "All" is selected, find the config with largest area
-            filtered_df['core_area'] = filtered_df['CoreRange_ maxlongedge'] * filtered_df['CoreRange_maxshortedge']
-            filtered_df['tech_area'] = filtered_df['Technical limit_long edge'] * filtered_df['Technical limit_short edge']
+            filtered_df['core_area'] = filtered_df['CoreRange_ maxlongedge_inches'] * filtered_df['CoreRange_maxshortedge_inches']
+            filtered_df['tech_area'] = filtered_df['Technical_limit_long edge_inches'] * filtered_df['Technical_limit_short edge_inches']
             
             # Get the config with largest core area
             max_core_idx = filtered_df['core_area'].idxmax()
-            core_long_max = filtered_df.loc[max_core_idx, 'CoreRange_ maxlongedge']
-            core_short_max = filtered_df.loc[max_core_idx, 'CoreRange_maxshortedge']
+            core_long_max = filtered_df.loc[max_core_idx, 'CoreRange_ maxlongedge_inches']
+            core_short_max = filtered_df.loc[max_core_idx, 'CoreRange_maxshortedge_inches']
             
             # Get the config with largest tech area
             max_tech_idx = filtered_df['tech_area'].idxmax()
-            tech_long_max = filtered_df.loc[max_tech_idx, 'Technical limit_long edge']
-            tech_short_max = filtered_df.loc[max_tech_idx, 'Technical limit_short edge']
+            tech_long_max = filtered_df.loc[max_tech_idx, 'Technical_limit_long edge_inches']
+            tech_short_max = filtered_df.loc[max_tech_idx, 'Technical_limit_short edge_inches']
         else:
             # For specific configuration, use that config's exact dimensions
-            core_long_max = filtered_df['CoreRange_ maxlongedge'].values[0]
-            core_short_max = filtered_df['CoreRange_maxshortedge'].values[0]
-            tech_long_max = filtered_df['Technical limit_long edge'].values[0]
-            tech_short_max = filtered_df['Technical limit_short edge'].values[0]
+            core_long_max = filtered_df['CoreRange_ maxlongedge_inches'].values[0]
+            core_short_max = filtered_df['CoreRange_maxshortedge_inches'].values[0]
+            tech_long_max = filtered_df['Technical_limit_long edge_inches'].values[0]
+            tech_short_max = filtered_df['Technical_limit_short edge_inches'].values[0]
         
         # Create synthetic config data for plotting
         plot_data = pd.DataFrame([{
-            'CoreRange_ maxlongedge': core_long_max,
-            'CoreRange_maxshortedge': core_short_max,
-            'Technical limit_long edge': tech_long_max,
-            'Technical limit_short edge': tech_short_max
+            'CoreRange_ maxlongedge_inches': core_long_max,
+            'CoreRange_maxshortedge_inches': core_short_max,
+            'Technical_limit_long edge_inches': tech_long_max,
+            'Technical_limit_short edge_inches': tech_short_max
         }])
         
         # Prepare custom point if entered
