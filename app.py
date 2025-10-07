@@ -37,6 +37,17 @@ def load_data():
         if os.path.exists(filename):
             try:
                 df = pd.read_excel(filename)
+                
+                # Standardize column names to handle inconsistencies
+                # Map old column names to new ones
+                column_mapping = {
+                    'CoreRange_ maxlongedge': 'CoreRange_ maxlongedge_inches',
+                    'CoreRange_maxshortedge': 'CoreRange_maxshortedge_inches',
+                    'Technical limit_long edge': 'Technical_limit_long edge_inches',
+                    'Technical limit_short edge': 'Technical_limit_short edge_inches'
+                }
+                df = df.rename(columns=column_mapping)
+                
                 return df
             except Exception as e:
                 st.error(f"Error reading {filename}: {str(e)}")
@@ -235,7 +246,7 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
     if show_all and all_configs_df is not None and not all_configs_df.empty:
         annotations = []
         
-        # Get all unique corner combinations from the configs
+        # Get all unique corner combinations from the configs - keep core and tech separate
         core_corners_set = set()
         tech_corners_set = set()
         
@@ -249,7 +260,7 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
             core_corners_set.add((c_long, c_short))
             core_corners_set.add((c_short, c_long))
             
-            # Add tech limit corners (both orientations)
+            # Add tech limit corners (both orientations) - SEPARATE from core
             tech_corners_set.add((t_long, t_short))
             tech_corners_set.add((t_short, t_long))
         
@@ -257,8 +268,7 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
         core_corners = sorted(list(core_corners_set), key=lambda p: (p[0], p[1]), reverse=True)
         tech_corners = sorted(list(tech_corners_set), key=lambda p: (p[0], p[1]), reverse=True)
         
-        # For core range, show up to 4 most extreme corners
-        # Find corners that are on the outer boundary (Pareto frontier)
+        # For core range, find Pareto frontier points
         core_frontier = []
         for x, y in core_corners:
             # A point is on the frontier if no other point dominates it in both dimensions
@@ -270,7 +280,7 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
             if not is_dominated:
                 core_frontier.append((x, y))
         
-        # Add labels for core frontier points (limit to 4 for clarity)
+        # Add BLUE labels for CORE frontier points
         for i, (x, y) in enumerate(core_frontier[:4]):
             annotations.append(
                 dict(x=x, y=y, 
@@ -283,7 +293,7 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
                      font=dict(color="white", size=10))
             )
         
-        # For tech limit, show up to 4 most extreme corners
+        # For tech limit, find Pareto frontier points
         tech_frontier = []
         for x, y in tech_corners:
             is_dominated = False
@@ -294,7 +304,7 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
             if not is_dominated:
                 tech_frontier.append((x, y))
         
-        # Add labels for tech frontier points (limit to 4 for clarity)
+        # Add ORANGE labels for TECH frontier points
         for i, (x, y) in enumerate(tech_frontier[:4]):
             annotations.append(
                 dict(x=x, y=y, 
@@ -471,6 +481,7 @@ def main():
         # Determine how to calculate max dimensions
         if outer_lite == 'All' or inner_lite == 'All' or tempered == 'All':
             # When "All" is selected, find the config with largest area
+            # Note: Column name has space after underscore: 'CoreRange_ maxlongedge_inches'
             filtered_df['core_area'] = filtered_df['CoreRange_ maxlongedge_inches'] * filtered_df['CoreRange_maxshortedge_inches']
             filtered_df['tech_area'] = filtered_df['Technical_limit_long edge_inches'] * filtered_df['Technical_limit_short edge_inches']
             
