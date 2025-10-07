@@ -116,8 +116,9 @@ def create_envelope_plot(config_data, min_edge=16):
     ))
     
     # Technical Limit envelope (larger, outer rectangle)
-    tech_x = [0, tech_long, tech_long, tech_short, tech_short, 0, 0]
-    tech_y = [0, 0, tech_short, tech_short, tech_long, tech_long, 0]
+    # Adjusted to start at min_edge instead of 0
+    tech_x = [min_edge, tech_long, tech_long, tech_short, tech_short, min_edge, min_edge]
+    tech_y = [min_edge, min_edge, tech_short, tech_short, tech_long, tech_long, min_edge]
     
     fig.add_trace(go.Scatter(
         x=tech_x,
@@ -130,8 +131,9 @@ def create_envelope_plot(config_data, min_edge=16):
     ))
     
     # Core Range envelope (smaller, inner rectangle)
-    core_x = [0, core_long, core_long, core_short, core_short, 0, 0]
-    core_y = [0, 0, core_short, core_short, core_long, core_long, 0]
+    # Adjusted to start at min_edge instead of 0
+    core_x = [min_edge, core_long, core_long, core_short, core_short, min_edge, min_edge]
+    core_y = [min_edge, min_edge, core_short, core_short, core_long, core_long, min_edge]
     
     fig.add_trace(go.Scatter(
         x=core_x,
