@@ -144,11 +144,9 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
     
     # Core Range envelope - draw all configurations if show_all is True
     if show_all and all_configs_df is not None and not all_configs_df.empty:
-        # Create a single unified shape by using SVG path
-        # Collect all rectangles and create a path that represents their union
+        # Create a single unified shape by using None separators
+        # This ensures consistent fill color without overlapping darkness
         
-        # For simplicity and correctness, we'll use Plotly's ability to draw multiple
-        # disconnected polygons in a single trace using None separators
         all_x = []
         all_y = []
         
@@ -168,16 +166,102 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
                 all_x.append(None)
                 all_y.append(None)
         
-        # Draw all shapes as ONE trace with consistent color
+        # Draw all shapes as ONE trace with consistent color and NO border
         fig.add_trace(go.Scatter(
             x=all_x,
             y=all_y,
             fill='toself',
             fillcolor='rgba(33, 150, 243, 0.3)',
-            line=dict(color='rgba(33, 150, 243, 1)', width=2),
+            line=dict(width=0),  # No borders
             name='Core Range',
             hoverinfo='skip'
         ))
+        
+        # Now compute the outer boundary by tracing the perimeter
+        # Collect all unique edges from all configurations
+        edges = []
+        for idx, row in all_configs_df.iterrows():
+            c_long = row['CoreRange_ maxlongedge']
+            c_short = row['CoreRange_maxshortedge']
+            
+            # Define the 8 edges of each L-shaped polygon
+            rect_edges = [
+                ((min_edge, 0), (c_long, 0)),      # bottom horizontal
+                ((c_long, 0), (c_long, c_short)),   # right vertical (short)
+                ((c_long, c_short), (c_short, c_short)),  # top horizontal (short)
+                ((c_short, c_short), (c_short, c_long)),  # middle vertical
+                ((c_short, c_long), (0, c_long)),   # top horizontal (long)
+                ((0, c_long), (0, min_edge)),       # left vertical
+                ((0, min_edge), (min_edge, min_edge)),  # bottom horizontal (min)
+                ((min_edge, min_edge), (min_edge, 0))   # right vertical (min)
+            ]
+            edges.extend(rect_edges)
+        
+        # Count edge occurrences - outer boundary edges appear only once
+        from collections import Counter
+        edge_counts = Counter()
+        for edge in edges:
+            # Normalize edge direction for counting
+            normalized = tuple(sorted([edge[0], edge[1]]))
+            edge_counts[normalized] += 1
+        
+        # Outer boundary edges appear an odd number of times
+        outer_edges = [edge for edge, count in edge_counts.items() if count % 2 == 1]
+        
+        # Trace the outer boundary by connecting edges
+        if outer_edges:
+            # Build adjacency map
+            adj = {}
+            for edge in outer_edges:
+                p1, p2 = edge
+                if p1 not in adj:
+                    adj[p1] = []
+                if p2 not in adj:
+                    adj[p2] = []
+                adj[p1].append(p2)
+                adj[p2].append(p1)
+            
+            # Start from (min_edge, 0) and trace the boundary
+            boundary_points = []
+            current = (min_edge, 0)
+            visited = set()
+            
+            while True:
+                boundary_points.append(current)
+                visited.add(current)
+                
+                # Find next unvisited neighbor
+                if current in adj:
+                    next_points = [p for p in adj[current] if p not in visited]
+                    if not next_points:
+                        break
+                    
+                    # Choose the next point that continues the perimeter
+                    # Sort by angle to maintain clockwise direction
+                    if len(next_points) == 1:
+                        current = next_points[0]
+                    else:
+                        # Multiple options - choose the one that goes clockwise
+                        current = next_points[0]
+                else:
+                    break
+                
+                if current == (min_edge, 0):
+                    break
+            
+            # Draw the outer boundary
+            if len(boundary_points) > 2:
+                boundary_x = [p[0] for p in boundary_points] + [boundary_points[0][0]]
+                boundary_y = [p[1] for p in boundary_points] + [boundary_points[0][1]]
+                
+                fig.add_trace(go.Scatter(
+                    x=boundary_x,
+                    y=boundary_y,
+                    mode='lines',
+                    line=dict(color='rgba(33, 150, 243, 1)', width=3),
+                    hoverinfo='skip',
+                    showlegend=False
+                ))
     else:
         # Single configuration - draw one envelope
         core_x = [min_edge, core_long, core_long, core_short, core_short, 0, 0, min_edge, min_edge]
@@ -401,4 +485,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
