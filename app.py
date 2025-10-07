@@ -189,18 +189,22 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
         dict(x=core_long, y=core_short, 
              text=f"{core_long}\" × {core_short}\"<br>{(core_long*core_short)/144:.1f} sq ft",
              showarrow=True, arrowhead=2, ax=20, ay=-20,
+             arrowcolor="rgba(33, 150, 243, 1)",
              bgcolor="rgba(33, 150, 243, 0.8)", font=dict(color="white", size=10)),
         dict(x=core_short, y=core_long, 
              text=f"{core_short}\" × {core_long}\"<br>{(core_short*core_long)/144:.1f} sq ft",
              showarrow=True, arrowhead=2, ax=-20, ay=20,
+             arrowcolor="rgba(33, 150, 243, 1)",
              bgcolor="rgba(33, 150, 243, 0.8)", font=dict(color="white", size=10)),
         dict(x=tech_long, y=tech_short, 
              text=f"{tech_long}\" × {tech_short}\"<br>{(tech_long*tech_short)/144:.1f} sq ft",
              showarrow=True, arrowhead=2, ax=30, ay=-30,
+             arrowcolor="rgba(255, 152, 0, 1)",
              bgcolor="rgba(255, 152, 0, 0.8)", font=dict(color="white", size=10)),
         dict(x=tech_short, y=tech_long, 
              text=f"{tech_short}\" × {tech_long}\"<br>{(tech_short*tech_long)/144:.1f} sq ft",
              showarrow=True, arrowhead=2, ax=-30, ay=30,
+             arrowcolor="rgba(255, 152, 0, 1)",
              bgcolor="rgba(255, 152, 0, 0.8)", font=dict(color="white", size=10))
     ]
     
