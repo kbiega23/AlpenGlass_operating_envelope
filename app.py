@@ -265,11 +265,21 @@ def main():
             config_name = filtered_df['Name'].values[0]
             st.subheader(f"Configuration: {config_name}")
         
-        # Calculate max values from filtered data
-        core_long_max = filtered_df['CoreRange_ maxlongedge'].max()
-        core_short_max = filtered_df['CoreRange_maxshortedge'].max()
-        tech_long_max = filtered_df['Technical limit_long edge'].max()
-        tech_short_max = filtered_df['Technical limit_short edge'].max()
+        # Find the configuration with the largest valid envelope
+        # We need to find configs that give us the largest possible window in any orientation
+        # For each config, calculate the area and find the one with maximum area
+        filtered_df['core_area'] = filtered_df['CoreRange_ maxlongedge'] * filtered_df['CoreRange_maxshortedge']
+        filtered_df['tech_area'] = filtered_df['Technical limit_long edge'] * filtered_df['Technical limit_short edge']
+        
+        # Get the config with largest core area
+        max_core_idx = filtered_df['core_area'].idxmax()
+        core_long_max = filtered_df.loc[max_core_idx, 'CoreRange_ maxlongedge']
+        core_short_max = filtered_df.loc[max_core_idx, 'CoreRange_maxshortedge']
+        
+        # Get the config with largest tech area
+        max_tech_idx = filtered_df['tech_area'].idxmax()
+        tech_long_max = filtered_df.loc[max_tech_idx, 'Technical limit_long edge']
+        tech_short_max = filtered_df.loc[max_tech_idx, 'Technical limit_short edge']
         
         # Create synthetic config data for plotting
         plot_data = pd.DataFrame([{
