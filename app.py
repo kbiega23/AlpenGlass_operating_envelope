@@ -144,35 +144,50 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
     
     # Core Range envelope - draw all configurations if show_all is True
     if show_all and all_configs_df is not None and not all_configs_df.empty:
-        # Draw each configuration as a separate rectangle with the SAME color
-        # They will naturally overlap and create a unified composite envelope
+        # Create a unified envelope by computing all valid points
+        # Build a set of all points that are valid in ANY configuration
+        max_dim = max(all_configs_df['CoreRange_ maxlongedge'].max(), 
+                     all_configs_df['CoreRange_maxshortedge'].max())
+        
+        # Create a fine grid to determine which points are valid
+        resolution = 1  # 1 inch resolution
+        x_points = np.arange(0, max_dim + resolution, resolution)
+        y_points = np.arange(0, max_dim + resolution, resolution)
+        
+        # For each configuration, mark valid regions
+        valid_grid = np.zeros((len(y_points), len(x_points)), dtype=bool)
+        
         for idx, row in all_configs_df.iterrows():
             c_long = row['CoreRange_ maxlongedge']
             c_short = row['CoreRange_maxshortedge']
             
-            core_x = [min_edge, c_long, c_long, c_short, c_short, 0, 0, min_edge, min_edge]
-            core_y = [0, 0, c_short, c_short, c_long, c_long, min_edge, min_edge, 0]
-            
-            fig.add_trace(go.Scatter(
-                x=core_x,
-                y=core_y,
-                fill='toself',
-                fillcolor='rgba(33, 150, 243, 0.3)',  # Same color for all
-                line=dict(color='rgba(33, 150, 243, 1)', width=1),
-                name='Core Range',
-                hoverinfo='skip',
-                showlegend=False  # Don't show individual configs in legend
-            ))
+            for i, y in enumerate(y_points):
+                for j, x in enumerate(x_points):
+                    # Check if this point is valid for this configuration
+                    # Must meet minimum size AND be within the L-shape of this config
+                    meets_min = (x >= min_edge or y >= min_edge)
+                    in_envelope = ((x <= c_long and y <= c_short) or 
+                                  (x <= c_short and y <= c_long))
+                    
+                    if meets_min and in_envelope:
+                        valid_grid[i, j] = True
         
-        # Add one legend entry for all core ranges
-        fig.add_trace(go.Scatter(
-            x=[None],
-            y=[None],
-            mode='markers',
-            marker=dict(size=10, color='rgba(33, 150, 243, 0.3)', 
-                       line=dict(color='rgba(33, 150, 243, 1)', width=2)),
+        # Now create a contour of the valid region
+        # Use plotly's contour to create a filled region
+        fig.add_trace(go.Contour(
+            x=x_points,
+            y=y_points,
+            z=valid_grid.astype(int),
+            contours=dict(
+                start=0.5,
+                end=0.5,
+                size=1
+            ),
+            showscale=False,
+            fillcolor='rgba(33, 150, 243, 0.3)',
+            line=dict(color='rgba(33, 150, 243, 1)', width=3),
             name='Core Range',
-            showlegend=True
+            hoverinfo='skip'
         ))
     else:
         # Single configuration - draw one envelope
@@ -342,10 +357,10 @@ def main():
             st.markdown("**Core Range** (Efficient Production)")
             if show_all_configs:
                 st.info(f"""
-                - Maximum Long Edge: **{core_long_max}\"** (across all configs)
-                - Maximum Short Edge: **{core_short_max}\"** (across all configs)
-                - Chart shows {len(filtered_df)} overlapping configurations
-                - Darker blue areas indicate more configuration options
+                - Maximum Long Edge: **{core_long_max}\"**
+                - Maximum Short Edge: **{core_short_max}\"**
+                - Showing composite of {len(filtered_df)} configuration(s)
+                - Envelope represents achievable dimensions across all configs
                 """)
             else:
                 st.info(f"""
@@ -376,9 +391,9 @@ def main():
             
             if show_all_configs:
                 st.markdown("""
-                - **Overlapping rectangles**: Each configuration shown as a semi-transparent rectangle
-                - **Composite envelope**: Where rectangles overlap, color is darker
-                - **True capabilities**: Outer boundary shows actual maximum achievable
+                - **Composite envelope**: Shows the union of all matching configurations
+                - **True capabilities**: Outer boundary shows actual maximum achievable in any dimension
+                - Example: Can achieve 120"×59" OR 100"×72", creating an L-shaped envelope
                 - Hover over chart to see dimensions at any point
                 - Select specific values to see one configuration
                 """)
