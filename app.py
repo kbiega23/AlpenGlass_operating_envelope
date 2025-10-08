@@ -97,12 +97,6 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
         tech_long = config_data['Technical_limit_long edge_inches'].values[0]
         tech_short = config_data['Technical_limit_short edge_inches'].values[0]
     
-    # Store original values for labeling before any conversions
-    core_long_label = int(core_long)
-    core_short_label = int(core_short)
-    tech_long_label = int(tech_long)
-    tech_short_label = int(tech_short)
-    
     fig = go.Figure()
     
     # Create a grid snapped to 1" increments for hover - fixed to 0-150"
@@ -255,62 +249,89 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
     if show_all and all_configs_df is not None and not all_configs_df.empty:
         annotations = []
         
-        # Hardcoded labels when "All" is selected for outer and inner lites
-        # Blue labels: (16,16), (98,72), (72,98), (120,59), (59,120)
-        # Orange labels: (120,72), (72,120)
+        core_corners_set = set()
+        tech_corners_set = set()
         
-        blue_labels = [(16, 16), (98, 72), (72, 98), (120, 59), (59, 120)]
-        orange_labels = [(120, 72), (72, 120)]
+        for idx, row in all_configs_df.iterrows():
+            c_long = row['CoreRange_ maxlongedge_inches']
+            c_short = row['CoreRange_maxshortedge_inches']
+            t_long = row['Technical_limit_long edge_inches']
+            t_short = row['Technical_limit_short edge_inches']
+            
+            core_corners_set.add((c_long, c_short))
+            core_corners_set.add((c_short, c_long))
+            tech_corners_set.add((t_long, t_short))
+            tech_corners_set.add((t_short, t_long))
         
-        # Add BLUE labels
-        for x, y in blue_labels:
-            ax_offset = 20 if x >= y else -20
-            ay_offset = -20 if x >= y else 20
+        core_corners = sorted(list(core_corners_set), key=lambda p: (p[0], p[1]), reverse=True)
+        tech_corners = sorted(list(tech_corners_set), key=lambda p: (p[0], p[1]), reverse=True)
+        
+        # Find Pareto frontier for core
+        core_frontier = []
+        for x, y in core_corners:
+            is_dominated = False
+            for x2, y2 in core_corners:
+                if x2 > x and y2 > y:
+                    is_dominated = True
+                    break
+            if not is_dominated:
+                core_frontier.append((x, y))
+        
+        # Add BLUE labels for CORE frontier points
+        for i, (x, y) in enumerate(core_frontier[:4]):
             annotations.append(
                 dict(x=x, y=y, 
-                     text=f"{x}\" × {y}\"<br>{(x*y)/144:.1f} sq ft",
+                     text=f"{int(x)}\" × {int(y)}\"<br>{(x*y)/144:.1f} sq ft",
                      showarrow=True, arrowhead=2, 
-                     ax=ax_offset, 
-                     ay=ay_offset,
+                     ax=20 if x >= y else -20, 
+                     ay=-20 if x >= y else 20,
                      arrowcolor="rgba(33, 150, 243, 1)",
                      bgcolor="rgba(33, 150, 243, 0.8)", 
                      font=dict(color="white", size=10))
             )
         
-        # Add ORANGE labels
-        for x, y in orange_labels:
-            ax_offset = 30 if x >= y else -30
-            ay_offset = -30 if x >= y else 30
+        # Find Pareto frontier for tech
+        tech_frontier = []
+        for x, y in tech_corners:
+            is_dominated = False
+            for x2, y2 in tech_corners:
+                if x2 > x and y2 > y:
+                    is_dominated = True
+                    break
+            if not is_dominated:
+                tech_frontier.append((x, y))
+        
+        # Add ORANGE labels for TECH frontier points
+        for i, (x, y) in enumerate(tech_frontier[:4]):
             annotations.append(
                 dict(x=x, y=y, 
-                     text=f"{x}\" × {y}\"<br>{(x*y)/144:.1f} sq ft",
+                     text=f"{int(x)}\" × {int(y)}\"<br>{(x*y)/144:.1f} sq ft",
                      showarrow=True, arrowhead=2, 
-                     ax=ax_offset, 
-                     ay=ay_offset,
+                     ax=30 if x >= y else -30, 
+                     ay=-30 if x >= y else 30,
                      arrowcolor="rgba(255, 152, 0, 1)",
                      bgcolor="rgba(255, 152, 0, 0.8)", 
                      font=dict(color="white", size=10))
             )
     else:
-        # Single configuration - use actual values from the data
         annotations = [
             dict(x=core_long, y=core_short, 
-                 text=f"{core_long_label}\" × {core_short_label}\"<br>{(core_long*core_short)/144:.1f} sq ft",
+                 text=f"{int(core_long)}\" × {int(core_short)}\"<br>{(core_long*core_short)/144:.1f} sq ft",
                  showarrow=True, arrowhead=2, ax=20, ay=-20,
                  arrowcolor="rgba(33, 150, 243, 1)",
                  bgcolor="rgba(33, 150, 243, 0.8)", font=dict(color="white", size=10)),
             dict(x=core_short, y=core_long, 
-                 text=f"{core_short_label}\" × {core_long_label}\"<br>{(core_short*core_long)/144:.1f} sq ft",
+                 text=f"{int(core_short)}\" × {int(core_long)}\"<br>{(core_short*core_long)/144:.1f} sq ft",
                  showarrow=True, arrowhead=2, ax=-20, ay=20,
                  arrowcolor="rgba(33, 150, 243, 1)",
                  bgcolor="rgba(33, 150, 243, 0.8)", font=dict(color="white", size=10)),
             dict(x=tech_long, y=tech_short, 
-                 text=f"{tech_long_label}\" × {tech_short_label}\"<br>{(tech_long*tech_short)/144:.1f} sq ft",
+                 text=f"{int(tech_long)}\" × {int(tech_short)}\"<br>{(tech_long*tech_short)/144:.1f} sq ft",
                  showarrow=True, arrowhead=2, ax=30, ay=-30,
                  arrowcolor="rgba(255, 152, 0, 1)",
                  bgcolor="rgba(255, 152, 0, 0.8)", font=dict(color="white", size=10)),
             dict(x=tech_short, y=tech_long, 
-                 text=f"{tech_short_label}\" × {tech_long_label}\"<br>{(tech_short*tech_long)/144:.1f} sq ft",
+                 text=f"{int(tech_short)}\" × {int(tech_long)}\"<br>{(tech_short*tech_long)/144:.1f} sq ft",
                  showarrow=True, arrowhead=2, ax=-30, ay=30,
                  arrowcolor="rgba(255, 152, 0, 1)",
                  bgcolor="rgba(255, 152, 0, 0.8)", font=dict(color="white", size=10))
