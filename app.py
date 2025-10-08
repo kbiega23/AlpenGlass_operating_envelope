@@ -277,25 +277,20 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
             if not is_dominated:
                 core_frontier.append((x, y))
         
-        # Add BLUE labels for core - made larger with smart positioning to avoid overlap
+        # Add BLUE labels for core - strategically positioned to minimize overlap
         labeled_positions = []
         for i, (x, y) in enumerate(core_frontier[:4]):
-            # Determine arrow offset based on position and avoid overlap
-            if x >= y:  # Horizontal orientation
-                ax_offset = 30
-                ay_offset = -30
-            else:  # Vertical orientation
-                ax_offset = -30
-                ay_offset = 30
+            # Use different positioning strategy for each label
+            if i == 0:  # First corner (usually upper right of core)
+                ax_offset, ay_offset = 40, -20
+            elif i == 1:  # Second corner
+                ax_offset, ay_offset = -20, 40
+            elif i == 2:  # Third corner
+                ax_offset, ay_offset = 40, 20
+            else:  # Fourth corner
+                ax_offset, ay_offset = -40, -20
             
-            # Check if this would overlap with existing labels and adjust
-            for prev_x, prev_y, prev_ax, prev_ay in labeled_positions:
-                if abs(x - prev_x) < 15 and abs(y - prev_y) < 15:
-                    # Too close, adjust the arrow offset
-                    ax_offset += 15
-                    ay_offset -= 15
-            
-            labeled_positions.append((x, y, ax_offset, ay_offset))
+            labeled_positions.append((x, y))
             
             annotations.append(
                 dict(x=x, y=y, 
@@ -309,7 +304,7 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
                      bordercolor="rgba(33, 150, 243, 1)",
                      borderwidth=2,
                      borderpad=6,
-                     font=dict(color="white", size=12, family="Arial"))
+                     font=dict(color="white", size=11, family="Arial"))
             )
         
         # Find Pareto frontier for tech
@@ -323,22 +318,29 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
             if not is_dominated:
                 tech_frontier.append((x, y))
         
-        # Add ORANGE labels for tech - made larger with smart positioning to avoid overlap
+        # Add ORANGE labels for tech - positioned to avoid core labels
         for i, (x, y) in enumerate(tech_frontier[:4]):
-            # Determine arrow offset - larger than blue labels
-            if x >= y:
-                ax_offset = 50
-                ay_offset = -50
-            else:
-                ax_offset = -50
-                ay_offset = 50
+            # Position orange labels away from blue ones
+            # Check distance from all blue label points
+            min_distance = float('inf')
+            for blue_x, blue_y in labeled_positions:
+                distance = ((x - blue_x)**2 + (y - blue_y)**2)**0.5
+                min_distance = min(min_distance, distance)
             
-            # Check if this would overlap with blue labels
-            for prev_x, prev_y, prev_ax, prev_ay in labeled_positions:
-                if abs(x - prev_x) < 20 and abs(y - prev_y) < 20:
-                    # Too close to blue label, adjust more
-                    ax_offset += 20 if ax_offset > 0 else -20
-                    ay_offset += 20 if ay_offset < 0 else -20
+            # Use different positioning for each tech label
+            if i == 0:  # First tech corner
+                ax_offset, ay_offset = 60, -10
+            elif i == 1:  # Second tech corner
+                ax_offset, ay_offset = -10, 60
+            elif i == 2:  # Third tech corner
+                ax_offset, ay_offset = 70, 30
+            else:  # Fourth tech corner
+                ax_offset, ay_offset = -60, -30
+            
+            # If too close to a blue label (within 25 units), push further away
+            if min_distance < 25:
+                ax_offset = ax_offset * 1.5
+                ay_offset = ay_offset * 1.5
             
             annotations.append(
                 dict(x=x, y=y, 
@@ -352,51 +354,51 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
                      bordercolor="rgba(255, 152, 0, 1)",
                      borderwidth=2,
                      borderpad=6,
-                     font=dict(color="white", size=12, family="Arial"))
+                     font=dict(color="white", size=11, family="Arial"))
             )
     else:
-        # Single config labels - made larger with better spacing
+        # Single config labels - positioned to avoid overlap
         annotations = [
             dict(x=core_long, y=core_short, 
                  text=f"<b>{core_long}\" × {core_short}\"</b><br>{(core_long*core_short)/144:.1f} sq ft",
-                 showarrow=True, arrowhead=2, ax=30, ay=-30,
+                 showarrow=True, arrowhead=2, ax=40, ay=-20,
                  arrowcolor="rgba(33, 150, 243, 1)",
                  arrowwidth=2,
                  bgcolor="rgba(33, 150, 243, 0.95)", 
                  bordercolor="rgba(33, 150, 243, 1)",
                  borderwidth=2,
                  borderpad=6,
-                 font=dict(color="white", size=12, family="Arial")),
+                 font=dict(color="white", size=11, family="Arial")),
             dict(x=core_short, y=core_long, 
                  text=f"<b>{core_short}\" × {core_long}\"</b><br>{(core_short*core_long)/144:.1f} sq ft",
-                 showarrow=True, arrowhead=2, ax=-30, ay=30,
+                 showarrow=True, arrowhead=2, ax=-20, ay=40,
                  arrowcolor="rgba(33, 150, 243, 1)",
                  arrowwidth=2,
                  bgcolor="rgba(33, 150, 243, 0.95)", 
                  bordercolor="rgba(33, 150, 243, 1)",
                  borderwidth=2,
                  borderpad=6,
-                 font=dict(color="white", size=12, family="Arial")),
+                 font=dict(color="white", size=11, family="Arial")),
             dict(x=tech_long, y=tech_short, 
                  text=f"<b>{tech_long}\" × {tech_short}\"</b><br>{(tech_long*tech_short)/144:.1f} sq ft",
-                 showarrow=True, arrowhead=2, ax=50, ay=-50,
+                 showarrow=True, arrowhead=2, ax=70, ay=-10,
                  arrowcolor="rgba(255, 152, 0, 1)",
                  arrowwidth=2,
                  bgcolor="rgba(255, 152, 0, 0.95)", 
                  bordercolor="rgba(255, 152, 0, 1)",
                  borderwidth=2,
                  borderpad=6,
-                 font=dict(color="white", size=12, family="Arial")),
+                 font=dict(color="white", size=11, family="Arial")),
             dict(x=tech_short, y=tech_long, 
                  text=f"<b>{tech_short}\" × {tech_long}\"</b><br>{(tech_short*tech_long)/144:.1f} sq ft",
-                 showarrow=True, arrowhead=2, ax=-50, ay=50,
+                 showarrow=True, arrowhead=2, ax=-10, ay=70,
                  arrowcolor="rgba(255, 152, 0, 1)",
                  arrowwidth=2,
                  bgcolor="rgba(255, 152, 0, 0.95)", 
                  bordercolor="rgba(255, 152, 0, 1)",
                  borderwidth=2,
                  borderpad=6,
-                 font=dict(color="white", size=12, family="Arial"))
+                 font=dict(color="white", size=11, family="Arial"))
         ]
     
     # Add axis labels at technical limit boundaries
