@@ -286,6 +286,7 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
                      font=dict(color="white", size=10))
             )
     else:
+        # Single configuration - show BOTH blue and orange labels
         annotations = [
             dict(x=core_long, y=core_short, 
                  text=f"{core_long}\" × {core_short}\"<br>{(core_long*core_short)/144:.1f} sq ft",
@@ -313,8 +314,20 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
     fig.update_layout(
         xaxis_title="Width (inches)",
         yaxis_title="Height (inches)",
-        xaxis=dict(range=[0, 150], showgrid=True, gridcolor='lightgray'),
-        yaxis=dict(range=[0, 150], showgrid=True, gridcolor='lightgray', scaleanchor="x", scaleratio=1),
+        xaxis=dict(
+            range=[0, 150], 
+            showgrid=True, 
+            gridcolor='lightgray',
+            fixedrange=True
+        ),
+        yaxis=dict(
+            range=[0, 150], 
+            showgrid=True, 
+            gridcolor='lightgray', 
+            scaleanchor="x", 
+            scaleratio=1,
+            fixedrange=True
+        ),
         plot_bgcolor='white',
         hovermode='closest',
         height=600,
