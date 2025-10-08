@@ -13,10 +13,9 @@ st.set_page_config(
 # Title and description
 st.title("🪟 AlpenGlass Sizing Limits")
 
-# Add comprehensive directions
-st.markdown("""
-### 📖 How to Use This Tool
-
+# Add comprehensive directions in collapsible expander
+with st.expander("📖 How to Use This Tool - Click to expand"):
+    st.markdown("""
 This interactive tool helps you determine if your window dimensions fit within AlpenGlass's manufacturing capabilities for different glass configurations.
 
 **Understanding the Visualization:**
