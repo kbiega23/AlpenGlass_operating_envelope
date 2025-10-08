@@ -12,36 +12,13 @@ st.set_page_config(
 
 # Title and description
 st.title("🪟 AlpenGlass Sizing Limits")
-
-# Add comprehensive directions
 st.markdown("""
-### 📖 How to Use This Tool
-
-This interactive tool helps you determine if your window dimensions fit within AlpenGlass's manufacturing capabilities for different glass configurations.
-
-**Understanding the Visualization:**
-- **Core Range** (blue shaded area): Standard production sizes with efficient lead times and pricing
-- **Technical Limit** (orange shaded area): Maximum physically achievable size (may require special order and longer lead time)
+This tool visualizes the maximum window sizes for different glass configurations.
+- **Core Range** (blue): Efficient, low-cost production range
+- **Technical Limit** (orange): Maximum physically achievable size (premium cost)
 - **Minimum Size**: At least one edge must be 16" or greater
 - **White areas**: Do not meet min or max size limits
-
-**Configuration Selection:**
-- **Select "All"**: View the composite envelope showing the maximum achievable sizes across all configurations in your filter. This shows you the outer boundaries of what's possible.
-- **Select Specific Values**: View the exact size limits for a particular glass configuration (specific outer lite thickness, center lite thickness, and treatment combination).
-
-**Checking Your Custom Size:**
-1. Use the dropdowns above to filter by glass specifications (or leave as "All")
-2. Enter your desired width and height in the input fields below
-3. A star will appear on the chart showing your size's location
-4. Check the status indicator to see if it falls within Core Range, Technical Limit, or outside our capabilities
-
-**Interpreting the Chart:**
-- Hover over any point to see exact dimensions and area
-- Blue and orange labels mark the corner limits for each range
-- The chart displays both portrait and landscape orientations
 """)
-
-st.markdown("---")
 
 # Load data
 @st.cache_data
@@ -100,8 +77,9 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
     fig = go.Figure()
     
     # Create a grid snapped to 1" increments for hover
-    x_range = np.arange(0, 151, 1)  # Fixed to 0-150"
-    y_range = np.arange(0, 151, 1)
+    max_dim = max(tech_long, tech_short)
+    x_range = np.arange(0, max_dim * 1.1 + 1, 1)
+    y_range = np.arange(0, max_dim * 1.1 + 1, 1)
     X, Y = np.meshgrid(x_range, y_range)
     
     # Determine which region each point is in
@@ -245,7 +223,7 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
             hovertemplate=f"<b>Your Custom Size</b><br>Width: {custom_width}\"<br>Height: {custom_height}\"<br>Area: {area_sqft:.1f} sq ft<br>{status_text}<extra></extra>"
         ))
     
-    # Add corner labels for key dimensions
+    # Add corner labels
     if show_all and all_configs_df is not None and not all_configs_df.empty:
         annotations = []
         
@@ -277,35 +255,33 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
             if not is_dominated:
                 core_frontier.append((x, y))
         
-        # Add BLUE labels for core - strategically positioned to minimize overlap
-        labeled_positions = []
-        for i, (x, y) in enumerate(core_frontier[:4]):
-            # Use different positioning strategy for each label
-            if i == 0:  # First corner (usually upper right of core)
-                ax_offset, ay_offset = 40, -20
-            elif i == 1:  # Second corner
-                ax_offset, ay_offset = -20, 40
-            elif i == 2:  # Third corner
-                ax_offset, ay_offset = 40, 20
-            else:  # Fourth corner
-                ax_offset, ay_offset = -40, -20
-            
-            labeled_positions.append((x, y))
-            
-            annotations.append(
-                dict(x=x, y=y, 
-                     text=f"<b>{x}\" × {y}\"</b><br>{(x*y)/144:.1f} sq ft",
-                     showarrow=True, arrowhead=2, 
-                     ax=ax_offset, 
-                     ay=ay_offset,
-                     arrowcolor="rgba(33, 150, 243, 1)",
-                     arrowwidth=2,
-                     bgcolor="rgba(33, 150, 243, 0.95)", 
-                     bordercolor="rgba(33, 150, 243, 1)",
-                     borderwidth=2,
-                     borderpad=6,
-                     font=dict(color="white", size=11, family="Arial"))
-            )
+        core_frontier_sorted = sorted(core_frontier, key=lambda p: (p[0]**2 + p[1]**2), reverse=True)
+        
+        # Add BLUE labels for core corners
+        labeled_core = set()
+        for x, y in core_frontier_sorted[:6]:
+            if (x, y) not in labeled_core:
+                is_corner = True
+                for x2, y2 in core_frontier:
+                    if (x2, y2) != (x, y):
+                        if x2 >= x and y2 >= y and (x2 > x or y2 > y):
+                            is_corner = False
+                            break
+                
+                if is_corner:
+                    labeled_core.add((x, y))
+                    ax_offset = 25 if x >= y else -25
+                    ay_offset = -25 if x >= y else 25
+                    
+                    annotations.append(
+                        dict(x=x, y=y, 
+                             text=f"{x}\" × {y}\"<br>{(x*y)/144:.1f} sq ft",
+                             showarrow=True, arrowhead=2, 
+                             ax=ax_offset, ay=ay_offset,
+                             arrowcolor="rgba(33, 150, 243, 1)",
+                             bgcolor="rgba(33, 150, 243, 0.8)", 
+                             font=dict(color="white", size=10))
+                    )
         
         # Find Pareto frontier for tech
         tech_frontier = []
@@ -318,156 +294,74 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
             if not is_dominated:
                 tech_frontier.append((x, y))
         
-        # Add ORANGE labels for tech - positioned to avoid core labels
-        for i, (x, y) in enumerate(tech_frontier[:4]):
-            # Position orange labels away from blue ones
-            # Check distance from all blue label points
-            min_distance = float('inf')
-            for blue_x, blue_y in labeled_positions:
-                distance = ((x - blue_x)**2 + (y - blue_y)**2)**0.5
-                min_distance = min(min_distance, distance)
-            
-            # Use different positioning for each tech label
-            if i == 0:  # First tech corner
-                ax_offset, ay_offset = 60, -10
-            elif i == 1:  # Second tech corner
-                ax_offset, ay_offset = -10, 60
-            elif i == 2:  # Third tech corner
-                ax_offset, ay_offset = 70, 30
-            else:  # Fourth tech corner
-                ax_offset, ay_offset = -60, -30
-            
-            # If too close to a blue label (within 25 units), push further away
-            if min_distance < 25:
-                ax_offset = ax_offset * 1.5
-                ay_offset = ay_offset * 1.5
-            
-            annotations.append(
-                dict(x=x, y=y, 
-                     text=f"<b>{x}\" × {y}\"</b><br>{(x*y)/144:.1f} sq ft",
-                     showarrow=True, arrowhead=2, 
-                     ax=ax_offset, 
-                     ay=ay_offset,
-                     arrowcolor="rgba(255, 152, 0, 1)",
-                     arrowwidth=2,
-                     bgcolor="rgba(255, 152, 0, 0.95)", 
-                     bordercolor="rgba(255, 152, 0, 1)",
-                     borderwidth=2,
-                     borderpad=6,
-                     font=dict(color="white", size=11, family="Arial"))
-            )
+        tech_frontier_sorted = sorted(tech_frontier, key=lambda p: (p[0]**2 + p[1]**2), reverse=True)
+        
+        # Add ORANGE labels for tech corners (excluding core corners)
+        labeled_tech = set()
+        for x, y in tech_frontier_sorted[:6]:
+            if (x, y) not in labeled_core and (x, y) not in labeled_tech:
+                is_corner = True
+                for x2, y2 in tech_frontier:
+                    if (x2, y2) != (x, y):
+                        if x2 >= x and y2 >= y and (x2 > x or y2 > y):
+                            is_corner = False
+                            break
+                
+                if is_corner:
+                    labeled_tech.add((x, y))
+                    ax_offset = 40 if x >= y else -40
+                    ay_offset = -40 if x >= y else 40
+                    
+                    annotations.append(
+                        dict(x=x, y=y, 
+                             text=f"{x}\" × {y}\"<br>{(x*y)/144:.1f} sq ft",
+                             showarrow=True, arrowhead=2, 
+                             ax=ax_offset, ay=ay_offset,
+                             arrowcolor="rgba(255, 152, 0, 1)",
+                             bgcolor="rgba(255, 152, 0, 0.8)", 
+                             font=dict(color="white", size=10))
+                    )
     else:
-        # Single config labels - positioned to avoid overlap
+        # Single configuration labels
         annotations = [
             dict(x=core_long, y=core_short, 
-                 text=f"<b>{core_long}\" × {core_short}\"</b><br>{(core_long*core_short)/144:.1f} sq ft",
-                 showarrow=True, arrowhead=2, ax=40, ay=-20,
+                 text=f"{core_long}\" × {core_short}\"<br>{(core_long*core_short)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=20, ay=-20,
                  arrowcolor="rgba(33, 150, 243, 1)",
-                 arrowwidth=2,
-                 bgcolor="rgba(33, 150, 243, 0.95)", 
-                 bordercolor="rgba(33, 150, 243, 1)",
-                 borderwidth=2,
-                 borderpad=6,
-                 font=dict(color="white", size=11, family="Arial")),
+                 bgcolor="rgba(33, 150, 243, 0.8)", font=dict(color="white", size=10)),
             dict(x=core_short, y=core_long, 
-                 text=f"<b>{core_short}\" × {core_long}\"</b><br>{(core_short*core_long)/144:.1f} sq ft",
-                 showarrow=True, arrowhead=2, ax=-20, ay=40,
+                 text=f"{core_short}\" × {core_long}\"<br>{(core_short*core_long)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=-20, ay=20,
                  arrowcolor="rgba(33, 150, 243, 1)",
-                 arrowwidth=2,
-                 bgcolor="rgba(33, 150, 243, 0.95)", 
-                 bordercolor="rgba(33, 150, 243, 1)",
-                 borderwidth=2,
-                 borderpad=6,
-                 font=dict(color="white", size=11, family="Arial")),
+                 bgcolor="rgba(33, 150, 243, 0.8)", font=dict(color="white", size=10)),
             dict(x=tech_long, y=tech_short, 
-                 text=f"<b>{tech_long}\" × {tech_short}\"</b><br>{(tech_long*tech_short)/144:.1f} sq ft",
-                 showarrow=True, arrowhead=2, ax=70, ay=-10,
+                 text=f"{tech_long}\" × {tech_short}\"<br>{(tech_long*tech_short)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=30, ay=-30,
                  arrowcolor="rgba(255, 152, 0, 1)",
-                 arrowwidth=2,
-                 bgcolor="rgba(255, 152, 0, 0.95)", 
-                 bordercolor="rgba(255, 152, 0, 1)",
-                 borderwidth=2,
-                 borderpad=6,
-                 font=dict(color="white", size=11, family="Arial")),
+                 bgcolor="rgba(255, 152, 0, 0.8)", font=dict(color="white", size=10)),
             dict(x=tech_short, y=tech_long, 
-                 text=f"<b>{tech_short}\" × {tech_long}\"</b><br>{(tech_short*tech_long)/144:.1f} sq ft",
-                 showarrow=True, arrowhead=2, ax=-10, ay=70,
+                 text=f"{tech_short}\" × {tech_long}\"<br>{(tech_short*tech_long)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=-30, ay=30,
                  arrowcolor="rgba(255, 152, 0, 1)",
-                 arrowwidth=2,
-                 bgcolor="rgba(255, 152, 0, 0.95)", 
-                 bordercolor="rgba(255, 152, 0, 1)",
-                 borderwidth=2,
-                 borderpad=6,
-                 font=dict(color="white", size=11, family="Arial"))
+                 bgcolor="rgba(255, 152, 0, 0.8)", font=dict(color="white", size=10))
         ]
     
-    # Add axis labels at technical limit boundaries
-    # Position them just outside the plot area
-    annotations.extend([
-        # X-axis label at tech_short
-        dict(x=tech_short, y=0, 
-             text=f"{tech_short}\"",
-             showarrow=False,
-             font=dict(color="rgba(255, 152, 0, 1)", size=12, family="Arial Black"),
-             xanchor='center',
-             yanchor='top',
-             yshift=-10),
-        # X-axis label at tech_long
-        dict(x=tech_long, y=0, 
-             text=f"{tech_long}\"",
-             showarrow=False,
-             font=dict(color="rgba(255, 152, 0, 1)", size=12, family="Arial Black"),
-             xanchor='center',
-             yanchor='top',
-             yshift=-10),
-        # Y-axis label at tech_short
-        dict(x=0, y=tech_short, 
-             text=f"{tech_short}\"",
-             showarrow=False,
-             font=dict(color="rgba(255, 152, 0, 1)", size=12, family="Arial Black"),
-             xanchor='right',
-             yanchor='middle',
-             xshift=-10),
-        # Y-axis label at tech_long
-        dict(x=0, y=tech_long, 
-             text=f"{tech_long}\"",
-             showarrow=False,
-             font=dict(color="rgba(255, 152, 0, 1)", size=12, family="Arial Black"),
-             xanchor='right',
-             yanchor='middle',
-             xshift=-10)
-    ])
+    # Update layout
+    max_dim_plot = max(tech_long, tech_short) * 1.1
     
-    # Update layout with fixed 0-150 range
+    if custom_point is not None:
+        max_dim_plot = max(max_dim_plot, custom_point[0] * 1.1, custom_point[1] * 1.1)
+    
     fig.update_layout(
         xaxis_title="Width (inches)",
         yaxis_title="Height (inches)",
-        xaxis=dict(
-            range=[0, 150], 
-            showgrid=True, 
-            gridcolor='lightgray',
-            fixedrange=True
-        ),
-        yaxis=dict(
-            range=[0, 150], 
-            showgrid=True, 
-            gridcolor='lightgray', 
-            scaleanchor="x", 
-            scaleratio=1,
-            fixedrange=True
-        ),
+        xaxis=dict(range=[0, max_dim_plot], showgrid=True, gridcolor='lightgray'),
+        yaxis=dict(range=[0, max_dim_plot], showgrid=True, gridcolor='lightgray', scaleanchor="x", scaleratio=1),
         plot_bgcolor='white',
         hovermode='closest',
         height=600,
         annotations=annotations,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1,
-            font=dict(size=14)
-        )
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
     
     return fig
@@ -479,62 +373,34 @@ def main():
     if df is None:
         st.stop()
     
-    # Create three columns for selectors
     col1, col2, col3 = st.columns(3)
     
     with col1:
         outer_lite_values = ['All'] + sorted(df['Outer Lites'].unique().tolist())
         outer_lite_labels = ['All'] + [f"{x}mm" for x in sorted(df['Outer Lites'].unique().tolist())]
-        outer_lite_display = st.selectbox(
-            "Outer Lites Thickness",
-            outer_lite_labels,
-            key="outer_lite_select"
-        )
+        outer_lite_display = st.selectbox("Outer Lites Thickness", outer_lite_labels, key="outer_lite_select")
         outer_lite = 'All' if outer_lite_display == 'All' else float(outer_lite_display.replace('mm', ''))
     
     with col2:
         inner_lite_values = ['All'] + sorted(df['Inner Lite'].unique().tolist())
         inner_lite_labels = ['All'] + [f"{x}mm" for x in sorted(df['Inner Lite'].unique().tolist())]
-        inner_lite_display = st.selectbox(
-            "Center Lite Thickness",
-            inner_lite_labels,
-            key="inner_lite_select"
-        )
+        inner_lite_display = st.selectbox("Center Lite Thickness", inner_lite_labels, key="inner_lite_select")
         inner_lite = 'All' if inner_lite_display == 'All' else float(inner_lite_display.replace('mm', ''))
     
     with col3:
         tempered_options = ['All'] + sorted(df['Tempered or Annealed'].unique().tolist())
-        tempered = st.selectbox(
-            "Glass Treatment",
-            tempered_options,
-            key="treatment_select"
-        )
+        tempered = st.selectbox("Glass Treatment", tempered_options, key="treatment_select")
     
-    # Add custom size input section
     st.markdown("---")
     st.markdown("### 🎯 Check Your Custom Size")
     
     size_col1, size_col2, size_col3 = st.columns([1, 1, 2])
     
     with size_col1:
-        custom_width = st.number_input(
-            "Width (inches)",
-            min_value=0.0,
-            max_value=200.0,
-            value=0.0,
-            step=1.0,
-            key="custom_width"
-        )
+        custom_width = st.number_input("Width (inches)", min_value=0.0, max_value=200.0, value=0.0, step=1.0, key="custom_width")
     
     with size_col2:
-        custom_height = st.number_input(
-            "Height (inches)",
-            min_value=0.0,
-            max_value=200.0,
-            value=0.0,
-            step=1.0,
-            key="custom_height"
-        )
+        custom_height = st.number_input("Height (inches)", min_value=0.0, max_value=200.0, value=0.0, step=1.0, key="custom_height")
     
     with size_col3:
         st.markdown("<br>", unsafe_allow_html=True)
@@ -546,7 +412,6 @@ def main():
     
     st.markdown("---")
     
-    # Filter data based on selection
     filtered_df = df.copy()
     
     if outer_lite != 'All':
@@ -558,12 +423,11 @@ def main():
     if tempered != 'All':
         filtered_df = filtered_df[filtered_df['Tempered or Annealed'] == tempered]
     
-    # Display configuration info
     if not filtered_df.empty:
         show_all_configs = (outer_lite == 'All' or inner_lite == 'All' or tempered == 'All')
         
         if show_all_configs:
-            st.subheader("Size Envelope")
+            st.subheader("Overall Maximum Sizes")
             config_description = []
             if outer_lite != 'All':
                 config_description.append(f"Outer Lites: {outer_lite}mm")
@@ -580,7 +444,6 @@ def main():
             config_name = filtered_df['Name'].values[0]
             st.subheader(f"Configuration: {config_name}")
         
-        # Determine how to calculate max dimensions
         if outer_lite == 'All' or inner_lite == 'All' or tempered == 'All':
             filtered_df['core_area'] = filtered_df['CoreRange_ maxlongedge_inches'] * filtered_df['CoreRange_maxshortedge_inches']
             filtered_df['tech_area'] = filtered_df['Technical_limit_long edge_inches'] * filtered_df['Technical_limit_short edge_inches']
@@ -609,7 +472,6 @@ def main():
         if custom_width > 0 and custom_height > 0:
             custom_point = (custom_width, custom_height)
         
-        # Create two columns for the plot and specifications
         plot_col, specs_col = st.columns([2, 1])
         
         with plot_col:
@@ -620,7 +482,6 @@ def main():
         with specs_col:
             st.markdown("### Specifications")
             
-            # Core Range specifications
             st.markdown("**Core Range** (Efficient Production)")
             if show_all_configs:
                 st.info(f"""
@@ -637,23 +498,19 @@ def main():
                 - Max Area: **{core_long_max * core_short_max} sq in** ({(core_long_max * core_short_max)/144:.1f} sq ft)
                 """)
             
-            # Technical Limit specifications
-            st.markdown("**Technical Limit** (Special Order)")
+            st.markdown("**Technical Limit** (Premium Cost)")
             st.warning(f"""
             - Maximum Long Edge: **{tech_long_max}\"**
             - Maximum Short Edge: **{tech_short_max}\"**
             - Max Size: **{tech_long_max}\" × {tech_short_max}\"**
             - Max Area: **{tech_long_max * tech_short_max} sq in** ({(tech_long_max * tech_short_max)/144:.1f} sq ft)
-            - May require special order and longer lead time
             """)
             
-            # Minimum size
             st.markdown("**Minimum Size Constraint**")
             st.error("""
             - At least one edge must be **16\"** or greater
             """)
             
-            # Show custom size status if entered
             if custom_point is not None:
                 st.markdown("---")
                 st.markdown("### 🎯 Your Custom Size Status")
@@ -666,9 +523,9 @@ def main():
                           (custom_width <= core_short_max and custom_height <= core_long_max)) and meets_min
                 
                 if in_core:
-                    st.success("✓ **Within Core Range** - Standard pricing and lead time")
+                    st.success("✓ **Within Core Range** - Standard pricing applies")
                 elif in_tech:
-                    st.warning("⚠ **Within Technical Limit** - May require special order and longer lead time")
+                    st.warning("⚠ **Within Technical Limit** - Premium pricing applies for this size")
                 elif not meets_min:
                     st.error("✗ **Below Minimum Size** - At least one edge must be 16\" or greater")
                 else:
