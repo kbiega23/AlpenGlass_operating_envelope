@@ -237,7 +237,7 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
                 symbol='star',
                 line=dict(color='white', width=2)
             ),
-            text=[f"{custom_width}\" × {custom_height}\""],
+            text=[f"{custom_width}\" × {custom_height}\" ({area_sqft:.1f} sf)"],
             textposition="top center",
             textfont=dict(size=12, color=marker_color, family="Arial Black"),
             name='Your Size',
