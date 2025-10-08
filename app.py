@@ -97,6 +97,12 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
         tech_long = config_data['Technical_limit_long edge_inches'].values[0]
         tech_short = config_data['Technical_limit_short edge_inches'].values[0]
     
+    # Store original values for labeling before any conversions
+    core_long_label = int(core_long)
+    core_short_label = int(core_short)
+    tech_long_label = int(tech_long)
+    tech_short_label = int(tech_short)
+    
     fig = go.Figure()
     
     # Create a grid snapped to 1" increments for hover - fixed to 0-150"
@@ -289,22 +295,22 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
         # Single configuration - use actual values from the data
         annotations = [
             dict(x=core_long, y=core_short, 
-                 text=f"{int(core_long)}\" × {int(core_short)}\"<br>{(core_long*core_short)/144:.1f} sq ft",
+                 text=f"{core_long_label}\" × {core_short_label}\"<br>{(core_long*core_short)/144:.1f} sq ft",
                  showarrow=True, arrowhead=2, ax=20, ay=-20,
                  arrowcolor="rgba(33, 150, 243, 1)",
                  bgcolor="rgba(33, 150, 243, 0.8)", font=dict(color="white", size=10)),
             dict(x=core_short, y=core_long, 
-                 text=f"{int(core_short)}\" × {int(core_long)}\"<br>{(core_short*core_long)/144:.1f} sq ft",
+                 text=f"{core_short_label}\" × {core_long_label}\"<br>{(core_short*core_long)/144:.1f} sq ft",
                  showarrow=True, arrowhead=2, ax=-20, ay=20,
                  arrowcolor="rgba(33, 150, 243, 1)",
                  bgcolor="rgba(33, 150, 243, 0.8)", font=dict(color="white", size=10)),
             dict(x=tech_long, y=tech_short, 
-                 text=f"{int(tech_long)}\" × {int(tech_short)}\"<br>{(tech_long*tech_short)/144:.1f} sq ft",
+                 text=f"{tech_long_label}\" × {tech_short_label}\"<br>{(tech_long*tech_short)/144:.1f} sq ft",
                  showarrow=True, arrowhead=2, ax=30, ay=-30,
                  arrowcolor="rgba(255, 152, 0, 1)",
                  bgcolor="rgba(255, 152, 0, 0.8)", font=dict(color="white", size=10)),
             dict(x=tech_short, y=tech_long, 
-                 text=f"{int(tech_short)}\" × {int(tech_long)}\"<br>{(tech_short*tech_long)/144:.1f} sq ft",
+                 text=f"{tech_short_label}\" × {tech_long_label}\"<br>{(tech_short*tech_long)/144:.1f} sq ft",
                  showarrow=True, arrowhead=2, ax=-30, ay=30,
                  arrowcolor="rgba(255, 152, 0, 1)",
                  bgcolor="rgba(255, 152, 0, 0.8)", font=dict(color="white", size=10))
