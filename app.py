@@ -277,17 +277,39 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
             if not is_dominated:
                 core_frontier.append((x, y))
         
-        # Add BLUE labels for core - made larger
+        # Add BLUE labels for core - made larger with smart positioning to avoid overlap
+        labeled_positions = []
         for i, (x, y) in enumerate(core_frontier[:4]):
+            # Determine arrow offset based on position and avoid overlap
+            if x >= y:  # Horizontal orientation
+                ax_offset = 30
+                ay_offset = -30
+            else:  # Vertical orientation
+                ax_offset = -30
+                ay_offset = 30
+            
+            # Check if this would overlap with existing labels and adjust
+            for prev_x, prev_y, prev_ax, prev_ay in labeled_positions:
+                if abs(x - prev_x) < 15 and abs(y - prev_y) < 15:
+                    # Too close, adjust the arrow offset
+                    ax_offset += 15
+                    ay_offset -= 15
+            
+            labeled_positions.append((x, y, ax_offset, ay_offset))
+            
             annotations.append(
                 dict(x=x, y=y, 
-                     text=f"{x}\" × {y}\"<br>{(x*y)/144:.1f} sq ft",
+                     text=f"<b>{x}\" × {y}\"</b><br>{(x*y)/144:.1f} sq ft",
                      showarrow=True, arrowhead=2, 
-                     ax=25 if x >= y else -25, 
-                     ay=-25 if x >= y else 25,
+                     ax=ax_offset, 
+                     ay=ay_offset,
                      arrowcolor="rgba(33, 150, 243, 1)",
-                     bgcolor="rgba(33, 150, 243, 0.9)", 
-                     font=dict(color="white", size=13, family="Arial"))
+                     arrowwidth=2,
+                     bgcolor="rgba(33, 150, 243, 0.95)", 
+                     bordercolor="rgba(33, 150, 243, 1)",
+                     borderwidth=2,
+                     borderpad=6,
+                     font=dict(color="white", size=12, family="Arial"))
             )
         
         # Find Pareto frontier for tech
@@ -301,83 +323,137 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
             if not is_dominated:
                 tech_frontier.append((x, y))
         
-        # Add ORANGE labels for tech - made larger
+        # Add ORANGE labels for tech - made larger with smart positioning to avoid overlap
         for i, (x, y) in enumerate(tech_frontier[:4]):
+            # Determine arrow offset - larger than blue labels
+            if x >= y:
+                ax_offset = 50
+                ay_offset = -50
+            else:
+                ax_offset = -50
+                ay_offset = 50
+            
+            # Check if this would overlap with blue labels
+            for prev_x, prev_y, prev_ax, prev_ay in labeled_positions:
+                if abs(x - prev_x) < 20 and abs(y - prev_y) < 20:
+                    # Too close to blue label, adjust more
+                    ax_offset += 20 if ax_offset > 0 else -20
+                    ay_offset += 20 if ay_offset < 0 else -20
+            
             annotations.append(
                 dict(x=x, y=y, 
-                     text=f"{x}\" × {y}\"<br>{(x*y)/144:.1f} sq ft",
+                     text=f"<b>{x}\" × {y}\"</b><br>{(x*y)/144:.1f} sq ft",
                      showarrow=True, arrowhead=2, 
-                     ax=35 if x >= y else -35, 
-                     ay=-35 if x >= y else 35,
+                     ax=ax_offset, 
+                     ay=ay_offset,
                      arrowcolor="rgba(255, 152, 0, 1)",
-                     bgcolor="rgba(255, 152, 0, 0.9)", 
-                     font=dict(color="white", size=13, family="Arial"))
+                     arrowwidth=2,
+                     bgcolor="rgba(255, 152, 0, 0.95)", 
+                     bordercolor="rgba(255, 152, 0, 1)",
+                     borderwidth=2,
+                     borderpad=6,
+                     font=dict(color="white", size=12, family="Arial"))
             )
     else:
-        # Single config labels - made larger
+        # Single config labels - made larger with better spacing
         annotations = [
             dict(x=core_long, y=core_short, 
-                 text=f"{core_long}\" × {core_short}\"<br>{(core_long*core_short)/144:.1f} sq ft",
-                 showarrow=True, arrowhead=2, ax=25, ay=-25,
+                 text=f"<b>{core_long}\" × {core_short}\"</b><br>{(core_long*core_short)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=30, ay=-30,
                  arrowcolor="rgba(33, 150, 243, 1)",
-                 bgcolor="rgba(33, 150, 243, 0.9)", 
-                 font=dict(color="white", size=13, family="Arial")),
+                 arrowwidth=2,
+                 bgcolor="rgba(33, 150, 243, 0.95)", 
+                 bordercolor="rgba(33, 150, 243, 1)",
+                 borderwidth=2,
+                 borderpad=6,
+                 font=dict(color="white", size=12, family="Arial")),
             dict(x=core_short, y=core_long, 
-                 text=f"{core_short}\" × {core_long}\"<br>{(core_short*core_long)/144:.1f} sq ft",
-                 showarrow=True, arrowhead=2, ax=-25, ay=25,
+                 text=f"<b>{core_short}\" × {core_long}\"</b><br>{(core_short*core_long)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=-30, ay=30,
                  arrowcolor="rgba(33, 150, 243, 1)",
-                 bgcolor="rgba(33, 150, 243, 0.9)", 
-                 font=dict(color="white", size=13, family="Arial")),
+                 arrowwidth=2,
+                 bgcolor="rgba(33, 150, 243, 0.95)", 
+                 bordercolor="rgba(33, 150, 243, 1)",
+                 borderwidth=2,
+                 borderpad=6,
+                 font=dict(color="white", size=12, family="Arial")),
             dict(x=tech_long, y=tech_short, 
-                 text=f"{tech_long}\" × {tech_short}\"<br>{(tech_long*tech_short)/144:.1f} sq ft",
-                 showarrow=True, arrowhead=2, ax=35, ay=-35,
+                 text=f"<b>{tech_long}\" × {tech_short}\"</b><br>{(tech_long*tech_short)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=50, ay=-50,
                  arrowcolor="rgba(255, 152, 0, 1)",
-                 bgcolor="rgba(255, 152, 0, 0.9)", 
-                 font=dict(color="white", size=13, family="Arial")),
+                 arrowwidth=2,
+                 bgcolor="rgba(255, 152, 0, 0.95)", 
+                 bordercolor="rgba(255, 152, 0, 1)",
+                 borderwidth=2,
+                 borderpad=6,
+                 font=dict(color="white", size=12, family="Arial")),
             dict(x=tech_short, y=tech_long, 
-                 text=f"{tech_short}\" × {tech_long}\"<br>{(tech_short*tech_long)/144:.1f} sq ft",
-                 showarrow=True, arrowhead=2, ax=-35, ay=35,
+                 text=f"<b>{tech_short}\" × {tech_long}\"</b><br>{(tech_short*tech_long)/144:.1f} sq ft",
+                 showarrow=True, arrowhead=2, ax=-50, ay=50,
                  arrowcolor="rgba(255, 152, 0, 1)",
-                 bgcolor="rgba(255, 152, 0, 0.9)", 
-                 font=dict(color="white", size=13, family="Arial"))
+                 arrowwidth=2,
+                 bgcolor="rgba(255, 152, 0, 0.95)", 
+                 bordercolor="rgba(255, 152, 0, 1)",
+                 borderwidth=2,
+                 borderpad=6,
+                 font=dict(color="white", size=12, family="Arial"))
         ]
     
     # Add axis labels at technical limit boundaries
+    # Position them just outside the plot area
     annotations.extend([
         # X-axis label at tech_short
-        dict(x=tech_short, y=-5, 
+        dict(x=tech_short, y=0, 
              text=f"{tech_short}\"",
              showarrow=False,
-             font=dict(color="rgba(255, 152, 0, 1)", size=11, family="Arial Bold"),
-             xanchor='center'),
+             font=dict(color="rgba(255, 152, 0, 1)", size=12, family="Arial Black"),
+             xanchor='center',
+             yanchor='top',
+             yshift=-10),
         # X-axis label at tech_long
-        dict(x=tech_long, y=-5, 
+        dict(x=tech_long, y=0, 
              text=f"{tech_long}\"",
              showarrow=False,
-             font=dict(color="rgba(255, 152, 0, 1)", size=11, family="Arial Bold"),
-             xanchor='center'),
+             font=dict(color="rgba(255, 152, 0, 1)", size=12, family="Arial Black"),
+             xanchor='center',
+             yanchor='top',
+             yshift=-10),
         # Y-axis label at tech_short
-        dict(x=-5, y=tech_short, 
+        dict(x=0, y=tech_short, 
              text=f"{tech_short}\"",
              showarrow=False,
-             font=dict(color="rgba(255, 152, 0, 1)", size=11, family="Arial Bold"),
-             textangle=0,
-             xanchor='right'),
+             font=dict(color="rgba(255, 152, 0, 1)", size=12, family="Arial Black"),
+             xanchor='right',
+             yanchor='middle',
+             xshift=-10),
         # Y-axis label at tech_long
-        dict(x=-5, y=tech_long, 
+        dict(x=0, y=tech_long, 
              text=f"{tech_long}\"",
              showarrow=False,
-             font=dict(color="rgba(255, 152, 0, 1)", size=11, family="Arial Bold"),
-             textangle=0,
-             xanchor='right')
+             font=dict(color="rgba(255, 152, 0, 1)", size=12, family="Arial Black"),
+             xanchor='right',
+             yanchor='middle',
+             xshift=-10)
     ])
     
     # Update layout with fixed 0-150 range
     fig.update_layout(
         xaxis_title="Width (inches)",
         yaxis_title="Height (inches)",
-        xaxis=dict(range=[0, 150], showgrid=True, gridcolor='lightgray'),
-        yaxis=dict(range=[0, 150], showgrid=True, gridcolor='lightgray', scaleanchor="x", scaleratio=1),
+        xaxis=dict(
+            range=[0, 150], 
+            showgrid=True, 
+            gridcolor='lightgray',
+            fixedrange=True
+        ),
+        yaxis=dict(
+            range=[0, 150], 
+            showgrid=True, 
+            gridcolor='lightgray', 
+            scaleanchor="x", 
+            scaleratio=1,
+            fixedrange=True
+        ),
         plot_bgcolor='white',
         hovermode='closest',
         height=600,
