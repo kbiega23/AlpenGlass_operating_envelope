@@ -246,9 +246,9 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
         ))
     
     # Add corner labels
+    annotations = []
+    
     if show_all and all_configs_df is not None and not all_configs_df.empty:
-        annotations = []
-        
         # For "All" mode, only show ORANGE labels for technical limit
         tech_corners_set = set()
         
