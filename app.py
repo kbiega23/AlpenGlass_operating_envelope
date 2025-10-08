@@ -135,7 +135,6 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
         fill='toself',
         fillcolor='rgba(255, 152, 0, 0.2)',
         line=dict(color='rgba(255, 152, 0, 0.8)', width=2, dash='dash'),
-        marker=dict(opacity=0),
         name='Technical Limit',
         hoverinfo='skip'
     ))
