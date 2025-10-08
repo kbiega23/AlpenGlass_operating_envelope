@@ -371,17 +371,17 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
         plot_bgcolor='white',
         hovermode='closest',
         height=600,
-        margin=dict(l=50, r=150, t=100, b=50),
+        margin=dict(l=50, r=50, t=100, b=50),
         annotations=annotations,
         legend=dict(
             orientation="v",
             yanchor="middle",
             y=0.5,
             xanchor="left",
-            x=1.01,
+            x=0.85,
             font=dict(size=12),
-            bgcolor="rgba(255, 255, 255, 0.8)",
-            bordercolor="rgba(0, 0, 0, 0.2)",
+            bgcolor="rgba(255, 255, 255, 0.9)",
+            bordercolor="rgba(0, 0, 0, 0.3)",
             borderwidth=1
         )
     )
