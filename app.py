@@ -249,46 +249,18 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
     if show_all and all_configs_df is not None and not all_configs_df.empty:
         annotations = []
         
-        core_corners_set = set()
+        # For "All" mode, only show ORANGE labels for technical limit
         tech_corners_set = set()
         
         for idx, row in all_configs_df.iterrows():
-            c_long = row['CoreRange_ maxlongedge_inches']
-            c_short = row['CoreRange_maxshortedge_inches']
             t_long = row['Technical_limit_long edge_inches']
             t_short = row['Technical_limit_short edge_inches']
             
-            core_corners_set.add((c_long, c_short))
-            core_corners_set.add((c_short, c_long))
+            # Add tech limit corners (both orientations)
             tech_corners_set.add((t_long, t_short))
             tech_corners_set.add((t_short, t_long))
         
-        core_corners = sorted(list(core_corners_set), key=lambda p: (p[0], p[1]), reverse=True)
         tech_corners = sorted(list(tech_corners_set), key=lambda p: (p[0], p[1]), reverse=True)
-        
-        # Find Pareto frontier for core
-        core_frontier = []
-        for x, y in core_corners:
-            is_dominated = False
-            for x2, y2 in core_corners:
-                if x2 > x and y2 > y:
-                    is_dominated = True
-                    break
-            if not is_dominated:
-                core_frontier.append((x, y))
-        
-        # Add BLUE labels for CORE frontier points
-        for i, (x, y) in enumerate(core_frontier[:4]):
-            annotations.append(
-                dict(x=x, y=y, 
-                     text=f"{x}\" × {y}\"<br>{(x*y)/144:.1f} sq ft",
-                     showarrow=True, arrowhead=2, 
-                     ax=20 if x >= y else -20, 
-                     ay=-20 if x >= y else 20,
-                     arrowcolor="rgba(33, 150, 243, 1)",
-                     bgcolor="rgba(33, 150, 243, 0.8)", 
-                     font=dict(color="white", size=10))
-            )
         
         # Find Pareto frontier for tech
         tech_frontier = []
@@ -301,7 +273,7 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
             if not is_dominated:
                 tech_frontier.append((x, y))
         
-        # Add ORANGE labels for TECH frontier points
+        # Add ORANGE labels for TECH frontier points only
         for i, (x, y) in enumerate(tech_frontier[:4]):
             annotations.append(
                 dict(x=x, y=y, 
