@@ -79,7 +79,7 @@ def load_data():
     return None
 
 # Create the envelope visualization
-def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_df=None, custom_point=None):
+def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_df=None, custom_point=None, filter_text=""):
     """Create a plotly figure showing the core range and technical limit envelopes"""
     
     if config_data.empty:
@@ -338,7 +338,18 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
         ]
     
     # Update layout - fixed to 0-150" range
+    # Add title with filter information for PNG export
+    title_text = "AlpenGlass Sizing Limits"
+    if filter_text:
+        title_text += f"<br><sub>{filter_text}</sub>"
+    
     fig.update_layout(
+        title=dict(
+            text=title_text,
+            x=0.5,
+            xanchor='center',
+            font=dict(size=16)
+        ),
         xaxis_title="Width (inches)",
         yaxis_title="Height (inches)",
         xaxis=dict(
@@ -360,14 +371,15 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
         plot_bgcolor='white',
         hovermode='closest',
         height=600,
-        margin=dict(l=50, r=50, t=50, b=50),
+        margin=dict(l=50, r=50, t=100, b=50),
         annotations=annotations,
         legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
+            orientation="v",
+            yanchor="middle",
+            y=0.5,
+            xanchor="left",
+            x=1.02,
+            font=dict(size=12)
         )
     )
     
@@ -510,11 +522,28 @@ def main():
         if custom_width > 0 and custom_height > 0:
             custom_point = (custom_width, custom_height)
         
+        # Create filter text for chart title (to show in PNG export)
+        filter_parts = []
+        if show_all_configs:
+            if outer_lite != 'All':
+                filter_parts.append(f"Outer Lites: {outer_lite}mm")
+            if inner_lite != 'All':
+                filter_parts.append(f"Center Lite: {inner_lite}mm")
+            if tempered != 'All':
+                filter_parts.append(f"Treatment: {tempered}")
+            
+            if filter_parts:
+                filter_text = "Filtered by: " + ", ".join(filter_parts)
+            else:
+                filter_text = "All Configurations"
+        else:
+            filter_text = f"Configuration: {filtered_df['Name'].values[0]}"
+        
         # Create two columns for the plot and specifications
         plot_col, specs_col = st.columns([2, 1])
         
         with plot_col:
-            fig = create_envelope_plot(plot_data, show_all=show_all_configs, all_configs_df=filtered_df if show_all_configs else None, custom_point=custom_point)
+            fig = create_envelope_plot(plot_data, show_all=show_all_configs, all_configs_df=filtered_df if show_all_configs else None, custom_point=custom_point, filter_text=filter_text)
             if fig:
                 st.plotly_chart(fig, use_container_width=True)
         
