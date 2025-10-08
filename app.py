@@ -12,13 +12,36 @@ st.set_page_config(
 
 # Title and description
 st.title("🪟 AlpenGlass Sizing Limits")
+
+# Add comprehensive directions
 st.markdown("""
-This tool visualizes the maximum window sizes for different glass configurations.
+### 📖 How to Use This Tool
+
+This interactive tool helps you determine if your window dimensions fit within AlpenGlass's manufacturing capabilities for different glass configurations.
+
+**Understanding the Visualization:**
 - **Core Range** (blue): Efficient, low-cost production range
-- **Technical Limit** (orange): Maximum physically achievable size (premium cost)
+- **Technical Limit** (orange): Maximum physically achievable size (may require special order and longer lead time)
 - **Minimum Size**: At least one edge must be 16" or greater
-- **White areas**: Do not meet min or max size limits
+- **White areas**: Do not meet minimum size requirements
+
+**Configuration Selection:**
+- **Select "All"**: View the composite envelope showing the maximum achievable sizes across all configurations in your filter. This shows you the outer boundaries of what's possible.
+- **Select Specific Values**: View the exact size limits for a particular glass configuration (specific outer lite thickness, center lite thickness, and treatment combination).
+
+**Checking Your Custom Size:**
+1. Use the dropdowns below to filter by glass specifications (or leave as "All")
+2. Enter your desired width and height in the custom size input fields
+3. A star will appear on the chart showing your size's location
+4. Check the status indicator to see if it falls within Core Range, Technical Limit, or outside our capabilities
+
+**Interpreting the Chart:**
+- Hover over any point to see exact dimensions and area
+- Blue and orange labels mark the corner limits for each range
+- The chart displays both portrait and landscape orientations
 """)
+
+st.markdown("---")
 
 # Load data
 @st.cache_data
@@ -76,10 +99,9 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
     
     fig = go.Figure()
     
-    # Create a grid snapped to 1" increments for hover
-    max_dim = max(tech_long, tech_short)
-    x_range = np.arange(0, max_dim * 1.1 + 1, 1)
-    y_range = np.arange(0, max_dim * 1.1 + 1, 1)
+    # Create a grid snapped to 1" increments for hover - fixed to 0-150"
+    x_range = np.arange(0, 151, 1)
+    y_range = np.arange(0, 151, 1)
     X, Y = np.meshgrid(x_range, y_range)
     
     # Determine which region each point is in
@@ -216,7 +238,7 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
                 symbol='star',
                 line=dict(color='white', width=2)
             ),
-            text=[f"{custom_width}\" × {custom_height}\" ({area_sqft:.1f} sf)"],
+            text=[f"{custom_width}\" × {custom_height}\""],
             textposition="top center",
             textfont=dict(size=12, color=marker_color, family="Arial Black"),
             name='Your Size',
@@ -255,33 +277,18 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
             if not is_dominated:
                 core_frontier.append((x, y))
         
-        core_frontier_sorted = sorted(core_frontier, key=lambda p: (p[0]**2 + p[1]**2), reverse=True)
-        
-        # Add BLUE labels for core corners
-        labeled_core = set()
-        for x, y in core_frontier_sorted[:6]:
-            if (x, y) not in labeled_core:
-                is_corner = True
-                for x2, y2 in core_frontier:
-                    if (x2, y2) != (x, y):
-                        if x2 >= x and y2 >= y and (x2 > x or y2 > y):
-                            is_corner = False
-                            break
-                
-                if is_corner:
-                    labeled_core.add((x, y))
-                    ax_offset = 25 if x >= y else -25
-                    ay_offset = -25 if x >= y else 25
-                    
-                    annotations.append(
-                        dict(x=x, y=y, 
-                             text=f"{x}\" × {y}\"<br>{(x*y)/144:.1f} sq ft",
-                             showarrow=True, arrowhead=2, 
-                             ax=ax_offset, ay=ay_offset,
-                             arrowcolor="rgba(33, 150, 243, 1)",
-                             bgcolor="rgba(33, 150, 243, 0.8)", 
-                             font=dict(color="white", size=10))
-                    )
+        # Add BLUE labels for CORE frontier points
+        for i, (x, y) in enumerate(core_frontier[:4]):
+            annotations.append(
+                dict(x=x, y=y, 
+                     text=f"{x}\" × {y}\"<br>{(x*y)/144:.1f} sq ft",
+                     showarrow=True, arrowhead=2, 
+                     ax=20 if x >= y else -20, 
+                     ay=-20 if x >= y else 20,
+                     arrowcolor="rgba(33, 150, 243, 1)",
+                     bgcolor="rgba(33, 150, 243, 0.8)", 
+                     font=dict(color="white", size=10))
+            )
         
         # Find Pareto frontier for tech
         tech_frontier = []
@@ -294,35 +301,19 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
             if not is_dominated:
                 tech_frontier.append((x, y))
         
-        tech_frontier_sorted = sorted(tech_frontier, key=lambda p: (p[0]**2 + p[1]**2), reverse=True)
-        
-        # Add ORANGE labels for tech corners (excluding core corners)
-        labeled_tech = set()
-        for x, y in tech_frontier_sorted[:6]:
-            if (x, y) not in labeled_core and (x, y) not in labeled_tech:
-                is_corner = True
-                for x2, y2 in tech_frontier:
-                    if (x2, y2) != (x, y):
-                        if x2 >= x and y2 >= y and (x2 > x or y2 > y):
-                            is_corner = False
-                            break
-                
-                if is_corner:
-                    labeled_tech.add((x, y))
-                    ax_offset = 40 if x >= y else -40
-                    ay_offset = -40 if x >= y else 40
-                    
-                    annotations.append(
-                        dict(x=x, y=y, 
-                             text=f"{x}\" × {y}\"<br>{(x*y)/144:.1f} sq ft",
-                             showarrow=True, arrowhead=2, 
-                             ax=ax_offset, ay=ay_offset,
-                             arrowcolor="rgba(255, 152, 0, 1)",
-                             bgcolor="rgba(255, 152, 0, 0.8)", 
-                             font=dict(color="white", size=10))
-                    )
+        # Add ORANGE labels for TECH frontier points
+        for i, (x, y) in enumerate(tech_frontier[:4]):
+            annotations.append(
+                dict(x=x, y=y, 
+                     text=f"{x}\" × {y}\"<br>{(x*y)/144:.1f} sq ft",
+                     showarrow=True, arrowhead=2, 
+                     ax=30 if x >= y else -30, 
+                     ay=-30 if x >= y else 30,
+                     arrowcolor="rgba(255, 152, 0, 1)",
+                     bgcolor="rgba(255, 152, 0, 0.8)", 
+                     font=dict(color="white", size=10))
+            )
     else:
-        # Single configuration labels
         annotations = [
             dict(x=core_long, y=core_short, 
                  text=f"{core_long}\" × {core_short}\"<br>{(core_long*core_short)/144:.1f} sq ft",
@@ -346,22 +337,23 @@ def create_envelope_plot(config_data, min_edge=16, show_all=False, all_configs_d
                  bgcolor="rgba(255, 152, 0, 0.8)", font=dict(color="white", size=10))
         ]
     
-    # Update layout
-    max_dim_plot = max(tech_long, tech_short) * 1.1
-    
-    if custom_point is not None:
-        max_dim_plot = max(max_dim_plot, custom_point[0] * 1.1, custom_point[1] * 1.1)
-    
+    # Update layout - fixed to 0-150" range
     fig.update_layout(
         xaxis_title="Width (inches)",
         yaxis_title="Height (inches)",
-        xaxis=dict(range=[0, max_dim_plot], showgrid=True, gridcolor='lightgray'),
-        yaxis=dict(range=[0, max_dim_plot], showgrid=True, gridcolor='lightgray', scaleanchor="x", scaleratio=1),
+        xaxis=dict(range=[0, 150], showgrid=True, gridcolor='lightgray'),
+        yaxis=dict(range=[0, 150], showgrid=True, gridcolor='lightgray', scaleanchor="x", scaleratio=1),
         plot_bgcolor='white',
         hovermode='closest',
         height=600,
         annotations=annotations,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
     )
     
     return fig
@@ -373,34 +365,62 @@ def main():
     if df is None:
         st.stop()
     
+    # Create three columns for selectors
     col1, col2, col3 = st.columns(3)
     
     with col1:
         outer_lite_values = ['All'] + sorted(df['Outer Lites'].unique().tolist())
         outer_lite_labels = ['All'] + [f"{x}mm" for x in sorted(df['Outer Lites'].unique().tolist())]
-        outer_lite_display = st.selectbox("Outer Lites Thickness", outer_lite_labels, key="outer_lite_select")
+        outer_lite_display = st.selectbox(
+            "Outer Lites Thickness",
+            outer_lite_labels,
+            key="outer_lite_select"
+        )
         outer_lite = 'All' if outer_lite_display == 'All' else float(outer_lite_display.replace('mm', ''))
     
     with col2:
         inner_lite_values = ['All'] + sorted(df['Inner Lite'].unique().tolist())
         inner_lite_labels = ['All'] + [f"{x}mm" for x in sorted(df['Inner Lite'].unique().tolist())]
-        inner_lite_display = st.selectbox("Center Lite Thickness", inner_lite_labels, key="inner_lite_select")
+        inner_lite_display = st.selectbox(
+            "Center Lite Thickness",
+            inner_lite_labels,
+            key="inner_lite_select"
+        )
         inner_lite = 'All' if inner_lite_display == 'All' else float(inner_lite_display.replace('mm', ''))
     
     with col3:
         tempered_options = ['All'] + sorted(df['Tempered or Annealed'].unique().tolist())
-        tempered = st.selectbox("Glass Treatment", tempered_options, key="treatment_select")
+        tempered = st.selectbox(
+            "Glass Treatment",
+            tempered_options,
+            key="treatment_select"
+        )
     
+    # Add custom size input section
     st.markdown("---")
     st.markdown("### 🎯 Check Your Custom Size")
     
     size_col1, size_col2, size_col3 = st.columns([1, 1, 2])
     
     with size_col1:
-        custom_width = st.number_input("Width (inches)", min_value=0.0, max_value=200.0, value=0.0, step=1.0, key="custom_width")
+        custom_width = st.number_input(
+            "Width (inches)",
+            min_value=0.0,
+            max_value=200.0,
+            value=0.0,
+            step=1.0,
+            key="custom_width"
+        )
     
     with size_col2:
-        custom_height = st.number_input("Height (inches)", min_value=0.0, max_value=200.0, value=0.0, step=1.0, key="custom_height")
+        custom_height = st.number_input(
+            "Height (inches)",
+            min_value=0.0,
+            max_value=200.0,
+            value=0.0,
+            step=1.0,
+            key="custom_height"
+        )
     
     with size_col3:
         st.markdown("<br>", unsafe_allow_html=True)
@@ -412,6 +432,7 @@ def main():
     
     st.markdown("---")
     
+    # Filter data based on selection
     filtered_df = df.copy()
     
     if outer_lite != 'All':
@@ -423,11 +444,12 @@ def main():
     if tempered != 'All':
         filtered_df = filtered_df[filtered_df['Tempered or Annealed'] == tempered]
     
+    # Display configuration info
     if not filtered_df.empty:
         show_all_configs = (outer_lite == 'All' or inner_lite == 'All' or tempered == 'All')
         
         if show_all_configs:
-            st.subheader("Overall Maximum Sizes")
+            st.subheader("Size Envelope")
             config_description = []
             if outer_lite != 'All':
                 config_description.append(f"Outer Lites: {outer_lite}mm")
@@ -444,6 +466,7 @@ def main():
             config_name = filtered_df['Name'].values[0]
             st.subheader(f"Configuration: {config_name}")
         
+        # Determine how to calculate max dimensions
         if outer_lite == 'All' or inner_lite == 'All' or tempered == 'All':
             filtered_df['core_area'] = filtered_df['CoreRange_ maxlongedge_inches'] * filtered_df['CoreRange_maxshortedge_inches']
             filtered_df['tech_area'] = filtered_df['Technical_limit_long edge_inches'] * filtered_df['Technical_limit_short edge_inches']
@@ -472,6 +495,7 @@ def main():
         if custom_width > 0 and custom_height > 0:
             custom_point = (custom_width, custom_height)
         
+        # Create two columns for the plot and specifications
         plot_col, specs_col = st.columns([2, 1])
         
         with plot_col:
@@ -498,12 +522,13 @@ def main():
                 - Max Area: **{core_long_max * core_short_max} sq in** ({(core_long_max * core_short_max)/144:.1f} sq ft)
                 """)
             
-            st.markdown("**Technical Limit** (Premium Cost)")
+            st.markdown("**Technical Limit** (Special Order)")
             st.warning(f"""
             - Maximum Long Edge: **{tech_long_max}\"**
             - Maximum Short Edge: **{tech_short_max}\"**
             - Max Size: **{tech_long_max}\" × {tech_short_max}\"**
             - Max Area: **{tech_long_max * tech_short_max} sq in** ({(tech_long_max * tech_short_max)/144:.1f} sq ft)
+            - May require special order and longer lead time
             """)
             
             st.markdown("**Minimum Size Constraint**")
@@ -523,13 +548,36 @@ def main():
                           (custom_width <= core_short_max and custom_height <= core_long_max)) and meets_min
                 
                 if in_core:
-                    st.success("✓ **Within Core Range** - Standard pricing applies")
+                    st.success("✓ **Within Core Range** - Standard pricing and lead time")
                 elif in_tech:
-                    st.warning("⚠ **Within Technical Limit** - Premium pricing applies for this size")
+                    st.warning("⚠ **Within Technical Limit** - May require special order and longer lead time")
                 elif not meets_min:
                     st.error("✗ **Below Minimum Size** - At least one edge must be 16\" or greater")
                 else:
                     st.error("✗ **Outside Technical Limits** - This size cannot be manufactured")
+            
+            # Additional notes
+            st.markdown("---")
+            st.markdown("### 📝 Notes")
+            
+            if show_all_configs:
+                st.markdown("""
+                - **Composite envelope**: Shows the union of all matching configurations
+                - **True capabilities**: Outer boundary shows actual maximum achievable in any dimension
+                - Example: Can achieve 120"×59" OR 100"×72", creating an L-shaped envelope
+                - Hover over chart to see dimensions at any point
+                - Select specific values to see one configuration
+                """)
+            else:
+                st.markdown("""
+                - Hover over the chart to see dimensions and pricing info
+                - Hover snaps to nearest 1" increment
+                - White areas do not meet minimum size requirements
+                - The chart shows both possible orientations (portrait and landscape)
+                - Core Range represents the most cost-effective production envelope
+                - Technical Limit sizes will incur a cost premium
+                - Select "All" in any dropdown to see overall maximum sizes
+                """)
     else:
         st.error("No configuration found for the selected parameters. Please check your data file.")
 
